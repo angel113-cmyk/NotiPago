@@ -33,3 +33,6 @@ installer/Output/
 
 ## Rutas locales de Android
 Android.local.props
+
+## APK de prueba local
+apk-prueba/
