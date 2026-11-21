@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Media;
 using PagoAlerta.Core;
 using PagoAlerta.Core.Exportacion;
@@ -11,35 +12,51 @@ using PagoAlerta.Desktop.Ui;
 namespace PagoAlerta.Desktop;
 
 /// <summary>
-/// Pantalla principal: resumen del dia, filtros, lista de pagos en tiempo real, detalle y ajustes.
-/// HU-02, 03, 04, 05, 06, 08 y HU-20 (parte PC).
+/// Pantalla principal: barra superior, resumen, filtros en chips, tabla de pagos en tiempo real y panel de detalle.
+/// HU-02, 03, 04, 05, 06, 07, 08 y HU-20 (parte PC). La logica es la de siempre; aqui solo cambio la presentacion.
 /// </summary>
 public class MainForm : Form
 {
     private const int TamPagina = 50;
+    private static readonly CultureInfo Es = new("es-PE");
 
     private readonly PagoService _servicio;
     private readonly PagoMonitor _monitor;
     private readonly Preferencias _prefs = Preferencias.Cargar();
 
-    // Encabezado
-    private readonly Label _lblTitulo = new(), _lblTotal = new(), _lblCantidad = new(), _lblUsuario = new();
-    private readonly Button _btnAjustes = new();
+    // Barra superior
+    private readonly ChipEstado _chipEstado = new();
+    private readonly Label _lblUsuario = new();
+    private readonly BotonPildora _btnSalir = new("Cerrar sesión", BotonPildora.Estilo.ContornoBlanco);
+
+    // Encabezado y resumen
+    private readonly Label _lblFecha = new(), _lblTitulo = new();
+    private readonly TarjetaStat _stTotal = new("Total cobrado", "No incluye mensajes de prueba", oscura: true);
+    private readonly TarjetaStat _stCantidad = new("Pagos recibidos", "Según los filtros activos", oscura: false);
+    private readonly TarjetaStat _stUltimo = new("Último pago", "Hora de Lima", oscura: false);
 
     // Filtros
-    private readonly ComboBox _cmbPeriodo = new(), _cmbApp = new();
+    private readonly Chip _chipHoy = new("Hoy"), _chipAyer = new("Ayer"), _chipRango = new("Rango de fechas");
+    private readonly Chip _chipTodas = new("Todas", Chip.Estilo.Contorno), _chipYape = new("Yape", Chip.Estilo.Contorno),
+                          _chipPlin = new("Plin", Chip.Estilo.Contorno), _chipBbva = new("BBVA", Chip.Estilo.Contorno);
     private readonly DateTimePicker _dtpDesde = new(), _dtpHasta = new();
-    private readonly TextBox _txtBuscar = new();
-    private readonly Button _btnLimpiar = new(), _btnEnviarPrueba = new(), _btnBorrarPruebas = new(), _btnExportar = new();
+    private readonly CampoRedondeado _buscar = new("Buscar por nombre", radio: 19, alto: 38);
     private readonly CheckBox _chkPruebas = new();
-    private readonly Label _lblEstado = new(), _lblAviso = new();
+    private readonly BotonPildora _btnExportar = new("Exportar a Excel", BotonPildora.Estilo.Verde, BotonPildora.IconoBoton.Descargar);
+    private readonly BotonPildora _btnMas = new("", BotonPildora.Estilo.Contorno, BotonPildora.IconoBoton.Mas);
+    private readonly ContextMenuStrip _menuMas = new();
+    private readonly Label _lblAviso = new();
+    private PanelRedondeado _tarjFiltros = null!;
+    private FlowLayoutPanel _flujo = null!;
 
-    private readonly ListaPagos _lista = new() { Dock = DockStyle.Fill };
+    private readonly TablaPagos _tabla = new() { Dock = DockStyle.Fill };
+    private readonly PanelDetalle _detalle = new() { Dock = DockStyle.Fill };
     private readonly System.Windows.Forms.Timer _debounceBusqueda = new() { Interval = 350 };
     private readonly System.Windows.Forms.Timer _reintento = new() { Interval = 10000 };
 
-    private int _version, _desplazamiento;
-    private bool _hayMas, _cargando, _suspender;
+    private int _version, _desplazamiento, _periodo;
+    private string? _appFiltro;
+    private bool _hayMas, _cargando, _suspender, _enviandoPrueba;
 
     public bool CerrarSesionSolicitado { get; private set; }
 
@@ -51,9 +68,11 @@ public class MainForm : Form
         Text = AppInfo.Nombre;
         BackColor = Tema.Fondo;
         Font = Tema.Fuente(10f);
-        ClientSize = new Size(1000, 700);
-        MinimumSize = new Size(820, 560);
+        Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? Icon;
+        ClientSize = new Size(1280, Math.Min(900, Screen.PrimaryScreen!.WorkingArea.Height - 90));
+        MinimumSize = new Size(1000, 600);
         StartPosition = FormStartPosition.CenterScreen;
+        DoubleBuffered = true;
 
         ConstruirUi();
 
@@ -64,182 +83,243 @@ public class MainForm : Form
     }
 
     // =====================================================================
-    //  UI
+    //  Interfaz
     // =====================================================================
     private void ConstruirUi()
     {
-        // ---- Encabezado azul ----
-        var encabezado = new Panel { Dock = DockStyle.Top, Height = 150, BackColor = Tema.Primario };
-        _lblTitulo.Text = "Total de hoy";
-        _lblTitulo.ForeColor = Color.FromArgb(210, 255, 255, 255);
-        _lblTitulo.Font = Tema.Fuente(11f);
-        _lblTitulo.AutoSize = true;
-        _lblTitulo.Location = new Point(32, 26);
-        _lblTotal.Text = Formato.Monto(0);
-        _lblTotal.ForeColor = Color.White;
-        _lblTotal.Font = Tema.Fuente(32f, FontStyle.Bold);
-        _lblTotal.AutoSize = true;
-        _lblTotal.Location = new Point(28, 50);
-        _lblCantidad.Text = "0 pagos";
-        _lblCantidad.ForeColor = Color.FromArgb(210, 255, 255, 255);
-        _lblCantidad.Font = Tema.Fuente(11f);
-        _lblCantidad.AutoSize = true;
-        _lblCantidad.Location = new Point(32, 110);
-        _lblUsuario.Text = _servicio.CorreoActual ?? "";
-        _lblUsuario.ForeColor = Color.FromArgb(210, 255, 255, 255);
-        _lblUsuario.Font = Tema.Fuente(9.5f);
-        _lblUsuario.AutoSize = true;
-        foreach (var l in new[] { _lblTitulo, _lblTotal, _lblCantidad, _lblUsuario }) l.BackColor = Color.Transparent;
-
-        _btnAjustes.Text = "Ajustes";
-        _btnAjustes.FlatStyle = FlatStyle.Flat;
-        _btnAjustes.FlatAppearance.BorderSize = 0;
-        _btnAjustes.BackColor = Tema.PrimarioOscuro;
-        _btnAjustes.ForeColor = Color.White;
-        _btnAjustes.Cursor = Cursors.Hand;
-        _btnAjustes.Font = Tema.Fuente(9.5f, FontStyle.Bold);
-        _btnAjustes.Size = new Size(110, 36);
-        _btnAjustes.Click += async (_, _) => await AbrirAjustesAsync();
-
-        encabezado.Controls.AddRange(new Control[] { _lblTitulo, _lblTotal, _lblCantidad, _lblUsuario, _btnAjustes });
-        encabezado.Resize += (_, _) =>
+        // ---------- Barra superior ----------
+        var barra = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Tema.PrimarioOscuro };
+        var logo = new LogoCampana(42) { Location = new Point(48, 15) };
+        var nombre = new Label
         {
-            _btnAjustes.Location = new Point(encabezado.Width - _btnAjustes.Width - 32, 24);
-            _lblUsuario.Location = new Point(encabezado.Width - _lblUsuario.Width - 32, 70);
+            Text = AppInfo.Nombre, ForeColor = Color.White, Font = Tema.Fuente(16f, FontStyle.Bold), AutoSize = true,
+            BackColor = Color.Transparent, Location = new Point(100, 20)
         };
+        _lblUsuario.Text = _servicio.CorreoActual ?? "";
+        _lblUsuario.ForeColor = Color.FromArgb(215, 255, 255, 255);
+        _lblUsuario.Font = Tema.Fuente(10f);
+        _lblUsuario.AutoSize = true;
+        _lblUsuario.BackColor = Color.Transparent;
+        _btnSalir.Click += async (_, _) => await CerrarSesionAsync();
+        barra.Controls.AddRange(new Control[] { logo, nombre, _chipEstado, _lblUsuario, _btnSalir });
+        barra.Resize += (_, _) => PosicionarBarra(barra);
+        PosicionarBarra(barra);
 
-        // ---- Filtros ----
-        var filtros = new Panel { Dock = DockStyle.Top, Height = 104, BackColor = Tema.Fondo, Padding = new Padding(24, 12, 24, 0) };
-        var fila1 = NuevaFila();
-        var fila2 = NuevaFila();
-        fila2.Top = 48;
+        // ---------- Encabezado ----------
+        _lblFecha.ForeColor = Tema.TextoSecundario;
+        _lblFecha.Font = Tema.Fuente(10f);
+        _lblFecha.AutoSize = true;
+        _lblFecha.Location = new Point(0, 2);
+        _lblTitulo.Text = "Pagos recibidos";
+        _lblTitulo.ForeColor = Tema.PrimarioOscuro;
+        _lblTitulo.Font = Tema.Fuente(22f, FontStyle.Bold);
+        _lblTitulo.AutoSize = true;
+        _lblTitulo.Location = new Point(-2, 24);
+        var encabezado = new Panel { Dock = DockStyle.Top, Height = 74, BackColor = Tema.Fondo };
+        encabezado.Controls.AddRange(new Control[] { _lblFecha, _lblTitulo });
 
-        _cmbPeriodo.DropDownStyle = ComboBoxStyle.DropDownList;
-        _cmbPeriodo.Items.AddRange(new object[] { "Hoy", "Ayer", "Rango de fechas" });
-        _cmbPeriodo.SelectedIndex = 0;
-        _cmbPeriodo.Width = 140;
+        // ---------- Tarjetas de resumen ----------
+        var stats = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top, Height = 120, ColumnCount = 3, RowCount = 1, BackColor = Tema.Fondo,
+            Margin = Padding.Empty, Padding = Padding.Empty
+        };
+        for (var i = 0; i < 3; i++) stats.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3f));
+        stats.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        foreach (var (card, col) in new[] { (_stTotal, 0), (_stCantidad, 1), (_stUltimo, 2) })
+        {
+            card.Dock = DockStyle.Fill;
+            card.Margin = new Padding(col == 0 ? 0 : 8, 0, col == 2 ? 0 : 8, 0);
+            stats.Controls.Add(card, col, 0);
+        }
+        _stTotal.MostrarTexto(Formato.Monto(0));
+        _stCantidad.MostrarTexto("0");
+        _stUltimo.MostrarTexto("—");
+
+        // ---------- Filtros ----------
+        _tarjFiltros = new PanelRedondeado { Dock = DockStyle.Top, Height = 74, Padding = new Padding(18, 14, 18, 8), BackColor = Color.White };
+        _flujo = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, BackColor = Color.Transparent, Margin = Padding.Empty };
+        _tarjFiltros.Controls.Add(_flujo);
 
         var hoy = ZonaLima.AhoraLima.Date;
         foreach (var d in new[] { _dtpDesde, _dtpHasta })
         {
             d.Format = DateTimePickerFormat.Short;
+            d.Font = Tema.Fuente(10f);
             d.Value = hoy;
             d.MaxDate = hoy.AddDays(1);
-            d.Width = 110;
+            d.Width = 112;
             d.Visible = false;
+            d.Margin = new Padding(0, 7, 10, 3);
+            d.ValueChanged += async (_, _) => await RecargarSiNoSuspendidoAsync();
         }
 
-        _cmbApp.DropDownStyle = ComboBoxStyle.DropDownList;
-        _cmbApp.Items.AddRange(new object[] { "Todas las apps", "Yape", "Plin", "BBVA" });
-        _cmbApp.SelectedIndex = 0;
-        _cmbApp.Width = 140;
+        _buscar.Width = 188;
+        _buscar.Margin = new Padding(2, 3, 10, 3);
+        _buscar.Caja.TextChanged += (_, _) => { if (!_suspender) { _debounceBusqueda.Stop(); _debounceBusqueda.Start(); } };
 
-        _txtBuscar.PlaceholderText = "Buscar por nombre…";
-        _txtBuscar.Width = 240;
-
-        Configurar(_btnLimpiar, "Limpiar", 90);
-        _btnLimpiar.Click += async (_, _) => await LimpiarFiltrosAsync();
-
-        Configurar(_btnExportar, "Exportar", 100);
-        _btnExportar.BackColor = Tema.Primario;
-        _btnExportar.ForeColor = Color.White;
-        _btnExportar.FlatAppearance.BorderColor = Tema.Primario;
-        _btnExportar.Click += async (_, _) => await ExportarAsync();
-
-        _chkPruebas.Text = "Incluir pruebas";
+        _chkPruebas.Text = "Ver pruebas";
         _chkPruebas.AutoSize = true;
-        _chkPruebas.ForeColor = Tema.TextoSecundario;
-        _chkPruebas.Margin = new Padding(3, 8, 12, 0);
-
-        Configurar(_btnEnviarPrueba, "Enviar prueba", 120);
-        Configurar(_btnBorrarPruebas, "Borrar pruebas", 120);
-        _btnEnviarPrueba.Click += async (_, _) => await EnviarPruebaAsync();
-        _btnBorrarPruebas.Click += async (_, _) => await BorrarPruebasAsync();
-
-        _lblEstado.AutoSize = true;
-        _lblEstado.Margin = new Padding(18, 8, 0, 0);
-        ActualizarEstadoRealtime(false);
-
-        fila1.Controls.AddRange(new Control[] { _cmbPeriodo, _dtpDesde, _dtpHasta, _cmbApp, _txtBuscar, _btnLimpiar, _btnExportar });
-        fila2.Controls.AddRange(new Control[] { _chkPruebas, _btnEnviarPrueba, _btnBorrarPruebas, _lblEstado });
-        filtros.Controls.Add(fila2);
-        filtros.Controls.Add(fila1);
-
-        // Eventos de filtros
-        _cmbPeriodo.SelectedIndexChanged += async (_, _) =>
-        {
-            var rango = _cmbPeriodo.SelectedIndex == 2;
-            _dtpDesde.Visible = _dtpHasta.Visible = rango;
-            await RecargarSiNoSuspendidoAsync();
-        };
-        _dtpDesde.ValueChanged += async (_, _) => await RecargarSiNoSuspendidoAsync();
-        _dtpHasta.ValueChanged += async (_, _) => await RecargarSiNoSuspendidoAsync();
-        _cmbApp.SelectedIndexChanged += async (_, _) => await RecargarSiNoSuspendidoAsync();
+        _chkPruebas.ForeColor = Tema.Texto;
+        _chkPruebas.Cursor = Cursors.Hand;
+        _chkPruebas.Margin = new Padding(4, 10, 10, 3);
         _chkPruebas.CheckedChanged += async (_, _) => await RecargarSiNoSuspendidoAsync();
-        _txtBuscar.TextChanged += (_, _) => { if (!_suspender) { _debounceBusqueda.Stop(); _debounceBusqueda.Start(); } };
 
-        // ---- Aviso de errores ----
+        _btnExportar.Click += async (_, _) => await ExportarAsync();
+        _btnMas.Click += (_, _) => _menuMas.Show(_btnMas, new Point(_btnMas.Width - 200, _btnMas.Height + 6));
+        ConstruirMenuMas();
+
+        foreach (var c in new Control[] { _chipHoy, _chipAyer, _chipRango, _chipTodas, _chipYape, _chipPlin, _chipBbva, _btnExportar, _btnMas })
+            c.Margin = new Padding(0, 3, 8, 3);
+        _chipTodas.Margin = new Padding(10, 3, 8, 3);
+
+        _chipHoy.Click += async (_, _) => await ElegirPeriodoAsync(0);
+        _chipAyer.Click += async (_, _) => await ElegirPeriodoAsync(1);
+        _chipRango.Click += async (_, _) => await ElegirPeriodoAsync(2);
+        _chipTodas.Click += async (_, _) => await ElegirAppAsync(null);
+        _chipYape.Click += async (_, _) => await ElegirAppAsync("Yape");
+        _chipPlin.Click += async (_, _) => await ElegirAppAsync("Plin");
+        _chipBbva.Click += async (_, _) => await ElegirAppAsync("BBVA");
+        _chipHoy.Seleccionado = true;
+        _chipTodas.Seleccionado = true;
+
+        _flujo.Controls.AddRange(new Control[]
+        {
+            _chipHoy, _chipAyer, _chipRango, _dtpDesde, _dtpHasta, _buscar,
+            _chipTodas, _chipYape, _chipPlin, _chipBbva, _chkPruebas, _btnExportar, _btnMas
+        });
+        _tarjFiltros.Resize += (_, _) => AjustarAltoFiltros();
+        _flujo.ControlAdded += (_, _) => AjustarAltoFiltros();
+        _dtpDesde.VisibleChanged += (_, _) => AjustarAltoFiltros();
+
+        // ---------- Aviso de errores ----------
         _lblAviso.Dock = DockStyle.Top;
-        _lblAviso.Height = 34;
+        _lblAviso.Height = 36;
         _lblAviso.BackColor = Color.FromArgb(254, 226, 226);
         _lblAviso.ForeColor = Tema.Error;
         _lblAviso.TextAlign = ContentAlignment.MiddleCenter;
         _lblAviso.Font = Tema.Fuente(10f, FontStyle.Bold);
         _lblAviso.Visible = false;
 
-        _lista.PagoClick += p => { using var f = new DetalleForm(p); f.ShowDialog(this); };
-        _lista.CercaDelFinal += async () => await CargarMasAsync();
+        // ---------- Tabla + detalle ----------
+        _tabla.SeleccionCambio += p => _detalle.Mostrar(p);
+        _tabla.CercaDelFinal += async () => await CargarMasAsync();
+        var colDetalle = new Panel { Dock = DockStyle.Right, Width = 412, Padding = new Padding(22, 0, 0, 0), BackColor = Tema.Fondo };
+        colDetalle.Controls.Add(_detalle);
+        var principal = new Panel { Dock = DockStyle.Fill, BackColor = Tema.Fondo, Padding = new Padding(0, 14, 0, 0) };
+        principal.Controls.Add(_tabla);
+        principal.Controls.Add(colDetalle);
 
-        // El orden de adicion define el apilado: Fill primero, encabezado al final (queda arriba).
-        Controls.Add(_lista);
+        // ---------- Cuerpo ----------
+        var cuerpo = new Panel { Dock = DockStyle.Fill, BackColor = Tema.Fondo, Padding = new Padding(48, 26, 48, 32) };
+        var espacio1 = new Panel { Dock = DockStyle.Top, Height = 16, BackColor = Tema.Fondo };
+        var espacio2 = new Panel { Dock = DockStyle.Top, Height = 14, BackColor = Tema.Fondo };
+        // El orden de adicion define el apilado: Fill primero, lo de arriba al final.
+        cuerpo.Controls.Add(principal);
+        cuerpo.Controls.Add(_tarjFiltros);
+        cuerpo.Controls.Add(espacio2);
+        cuerpo.Controls.Add(stats);
+        cuerpo.Controls.Add(espacio1);
+        cuerpo.Controls.Add(encabezado);
+
+        Controls.Add(cuerpo);
         Controls.Add(_lblAviso);
-        Controls.Add(filtros);
-        Controls.Add(encabezado);
+        Controls.Add(barra);
+
+        ActualizarEstadoRealtime(false);
+        ActualizarEncabezado();
+        _detalle.Mostrar(null);
+        Load += (_, _) => AjustarAltoFiltros();
     }
 
-    private static FlowLayoutPanel NuevaFila() => new()
+    private void PosicionarBarra(Panel barra)
     {
-        Left = 24, Top = 12, Height = 36, Width = 4000, WrapContents = false, AutoSize = false,
-        BackColor = Color.Transparent
-    };
+        var derecha = barra.Width - 48;
+        _btnSalir.Location = new Point(derecha - _btnSalir.Width, (barra.Height - _btnSalir.Height) / 2);
+        _lblUsuario.Location = new Point(_btnSalir.Left - 20 - _lblUsuario.Width, (barra.Height - _lblUsuario.Height) / 2);
+        _chipEstado.Location = new Point(_lblUsuario.Left - 22 - _chipEstado.Width, (barra.Height - _chipEstado.Height) / 2);
+    }
 
-    private static void Configurar(Button b, string texto, int ancho)
+    private void AjustarAltoFiltros()
     {
-        b.Text = texto;
-        b.Width = ancho;
-        b.Height = 30;
-        b.FlatStyle = FlatStyle.Flat;
-        b.FlatAppearance.BorderColor = Tema.Borde;
-        b.BackColor = Tema.Tarjeta;
-        b.ForeColor = Tema.Primario;
-        b.Cursor = Cursors.Hand;
-        b.Font = Tema.Fuente(9.5f, FontStyle.Bold);
+        if (_tarjFiltros is null || _flujo is null || _tarjFiltros.Width < 50) return;
+        var disponible = _tarjFiltros.Width - _tarjFiltros.Padding.Horizontal;
+        var h = _flujo.GetPreferredSize(new Size(disponible, 0)).Height;
+        _tarjFiltros.Height = h + _tarjFiltros.Padding.Vertical + 4;
+    }
+
+    private void ConstruirMenuMas()
+    {
+        _menuMas.Font = Tema.Fuente(10f);
+        _menuMas.ShowImageMargin = false;
+        _menuMas.Items.Add("Limpiar filtros", null, async (_, _) => await LimpiarFiltrosAsync());
+        _menuMas.Items.Add("Enviar prueba", null, async (_, _) => await EnviarPruebaAsync());
+        _menuMas.Items.Add("Borrar pruebas", null, async (_, _) => await BorrarPruebasAsync());
+        _menuMas.Items.Add(new ToolStripSeparator());
+        _menuMas.Items.Add("Ajustes", null, async (_, _) => await AbrirAjustesAsync());
     }
 
     private void ActualizarEstadoRealtime(bool activo)
     {
-        _lblEstado.Text = activo ? "● Tiempo real activo" : "● Actualizando cada pocos segundos";
-        _lblEstado.ForeColor = activo ? Tema.Recibido : Tema.TextoSecundario;
+        _chipEstado.Establecer(activo, activo ? "En vivo · conectado" : "Actualizando cada pocos segundos");
+        if (_chipEstado.Parent is Panel barra) PosicionarBarra(barra);
+    }
+
+    private void ActualizarEncabezado()
+    {
+        var hoy = ZonaLima.AhoraLima.Date;
+        string Larga(DateTime d)
+        {
+            var t = d.ToString("dddd d 'de' MMMM 'de' yyyy", Es);
+            return char.ToUpper(t[0], Es) + t[1..];
+        }
+        _lblFecha.Text = _periodo switch
+        {
+            1 => Larga(hoy.AddDays(-1)),
+            2 => $"Del {_dtpDesde.Value:dd/MM/yyyy} al {_dtpHasta.Value:dd/MM/yyyy}",
+            _ => Larga(hoy)
+        };
     }
 
     // =====================================================================
     //  Filtros
     // =====================================================================
-    private (DateTime Desde, DateTime Hasta, string Titulo) RangoSeleccionado()
+    private async Task ElegirPeriodoAsync(int periodo)
+    {
+        if (_periodo == periodo && periodo != 2) return;
+        _periodo = periodo;
+        _chipHoy.Seleccionado = periodo == 0;
+        _chipAyer.Seleccionado = periodo == 1;
+        _chipRango.Seleccionado = periodo == 2;
+        _dtpDesde.Visible = _dtpHasta.Visible = periodo == 2;
+        ActualizarEncabezado();
+        await RecargarSiNoSuspendidoAsync();
+    }
+
+    private async Task ElegirAppAsync(string? app)
+    {
+        if (_appFiltro == app) return;
+        _appFiltro = app;
+        _chipTodas.Seleccionado = app is null;
+        _chipYape.Seleccionado = app == "Yape";
+        _chipPlin.Seleccionado = app == "Plin";
+        _chipBbva.Seleccionado = app == "BBVA";
+        await RecargarSiNoSuspendidoAsync();
+    }
+
+    private (DateTime Desde, DateTime Hasta) RangoSeleccionado()
     {
         var hoy = ZonaLima.AhoraLima.Date;
-        switch (_cmbPeriodo.SelectedIndex)
+        switch (_periodo)
         {
             case 1:
-                var (d1, h1) = ZonaLima.RangoDia(hoy.AddDays(-1));
-                return (d1, h1, "Total de ayer");
+                return ZonaLima.RangoDia(hoy.AddDays(-1));
             case 2:
                 var a = _dtpDesde.Value.Date; var b = _dtpHasta.Value.Date;
                 if (a > b) (a, b) = (b, a);
-                return (ZonaLima.RangoDia(a).DesdeUtc, ZonaLima.RangoDia(b).HastaUtc, "Total del rango");
+                return (ZonaLima.RangoDia(a).DesdeUtc, ZonaLima.RangoDia(b).HastaUtc);
             default:
-                var (d0, h0) = ZonaLima.RangoDia(hoy);
-                return (d0, h0, "Total de hoy");
+                return ZonaLima.RangoDia(hoy);
         }
     }
 
@@ -250,8 +330,8 @@ public class MainForm : Form
         {
             DesdeUtc = r.Desde,
             HastaUtc = r.Hasta,
-            App = _cmbApp.SelectedIndex > 0 ? _cmbApp.SelectedItem!.ToString() : null,
-            Nombre = string.IsNullOrWhiteSpace(_txtBuscar.Text) ? null : _txtBuscar.Text.Trim(),
+            App = _appFiltro,
+            Nombre = string.IsNullOrWhiteSpace(_buscar.Text) ? null : _buscar.Text.Trim(),
             IncluirPruebas = _chkPruebas.Checked,
             Limite = TamPagina
         };
@@ -265,13 +345,16 @@ public class MainForm : Form
     private async Task LimpiarFiltrosAsync()
     {
         _suspender = true;
-        _cmbPeriodo.SelectedIndex = 0;
-        _cmbApp.SelectedIndex = 0;
-        _txtBuscar.Clear();
+        _periodo = 0; _appFiltro = null;
+        _chipHoy.Seleccionado = true; _chipAyer.Seleccionado = false; _chipRango.Seleccionado = false;
+        _chipTodas.Seleccionado = true; _chipYape.Seleccionado = false; _chipPlin.Seleccionado = false; _chipBbva.Seleccionado = false;
+        _dtpDesde.Visible = _dtpHasta.Visible = false;
+        _buscar.Caja.Clear();
         _chkPruebas.Checked = false;
         _dtpDesde.Value = _dtpHasta.Value = ZonaLima.AhoraLima.Date;
         _suspender = false;
         _debounceBusqueda.Stop();
+        ActualizarEncabezado();
         await RecargarAsync();
     }
 
@@ -296,8 +379,9 @@ public class MainForm : Form
     {
         var version = ++_version;
         _cargando = true;
-        _lista.MensajeVacio = "Cargando pagos…";
-        _lista.Reemplazar(Array.Empty<Pago>());
+        _tabla.MensajeVacio = "Cargando pagos…";
+        _tabla.Reemplazar(Array.Empty<Pago>());
+        _detalle.Mostrar(null);
         _desplazamiento = 0;
         _hayMas = true;
 
@@ -305,8 +389,9 @@ public class MainForm : Form
         {
             await LlenarAsync(version);
             if (version != _version) return;
-            _lista.MensajeVacio = "No hay pagos con estos filtros.";
-            _lista.Invalidate();
+            _tabla.MensajeVacio = "No hay pagos con estos filtros.";
+            _tabla.Invalidate();
+            ActualizarUltimoPago();
             OcultarAviso();
             _ = ActualizarResumenAsync(version);
         }
@@ -320,10 +405,10 @@ public class MainForm : Form
         }
     }
 
-    /// <summary>Carga paginas hasta mostrar suficientes tarjetas (la busqueda por nombre puede dejar paginas casi vacias).</summary>
+    /// <summary>Carga paginas hasta mostrar suficientes filas (la busqueda por nombre puede dejar paginas casi vacias).</summary>
     private async Task LlenarAsync(int version)
     {
-        for (var intento = 0; intento < 6 && _hayMas && (intento == 0 || _lista.Cantidad < 15); intento++)
+        for (var intento = 0; intento < 6 && _hayMas && (intento == 0 || _tabla.Cantidad < 15); intento++)
         {
             var f = FiltroActual();
             f.Desplazamiento = _desplazamiento;
@@ -332,7 +417,7 @@ public class MainForm : Form
             _desplazamiento += TamPagina;
             _hayMas = pagina.HayMas;
             foreach (var p in pagina.Items) _monitor.MarcarVisto(p.Id);
-            _lista.Agregar(pagina.Items);
+            _tabla.Agregar(pagina.Items);
         }
     }
 
@@ -341,7 +426,7 @@ public class MainForm : Form
         if (_cargando || !_hayMas) return;
         var version = _version;
         _cargando = true;
-        try { await LlenarAsync(version); }
+        try { await LlenarAsync(version); ActualizarUltimoPago(); }
         catch (Exception ex) when (version == _version) { await ManejarErrorAsync(ex); }
         finally { if (version == _version) _cargando = false; }
     }
@@ -350,15 +435,19 @@ public class MainForm : Form
     {
         try
         {
-            var r = RangoSeleccionado();
-            var f = FiltroActual();
-            var resumen = await _servicio.ResumenAsync(f);
-            if (version != _version && version != 0) { /* un cambio de filtro lo recalcula */ }
-            _lblTitulo.Text = r.Titulo;
-            _lblTotal.Text = Formato.Monto(resumen.Total);
-            _lblCantidad.Text = resumen.Cantidad == 1 ? "1 pago" : $"{resumen.Cantidad} pagos";
+            var resumen = await _servicio.ResumenAsync(FiltroActual());
+            _stTotal.AnimarNumero(resumen.Total, v => Formato.Monto(v));
+            _stCantidad.AnimarNumero(resumen.Cantidad, v => ((int)Math.Round(v)).ToString(CultureInfo.InvariantCulture));
         }
         catch { /* el listado ya muestra el error; el resumen se recalcula en el proximo ciclo */ }
+    }
+
+    /// <summary>Hora del pago recibido mas reciente de la lista (las pruebas no cuentan).</summary>
+    private void ActualizarUltimoPago()
+    {
+        var ultimo = _tabla.Pagos.Where(p => p.Tipo == TipoPago.Recibido && !p.EsPrueba)
+                                 .OrderByDescending(p => p.FechaHora).FirstOrDefault();
+        _stUltimo.MostrarTexto(ultimo is null ? "—" : Formato.Hora24(ultimo.FechaHora));
     }
 
     // =====================================================================
@@ -377,9 +466,13 @@ public class MainForm : Form
     private void AlLlegarPago(Pago p) => EnUi(() =>
     {
         if (!Coincide(p)) return;
-        _lista.InsertarResaltado(p);
+        _tabla.InsertarResaltado(p);
         if (_prefs.Sonido) SystemSounds.Asterisk.Play();
-        if (!p.EsPrueba && p.Tipo == TipoPago.Recibido) _ = ActualizarResumenAsync(_version);
+        if (!p.EsPrueba && p.Tipo == TipoPago.Recibido)
+        {
+            ActualizarUltimoPago();
+            _ = ActualizarResumenAsync(_version);
+        }
     });
 
     // =====================================================================
@@ -387,7 +480,8 @@ public class MainForm : Form
     // =====================================================================
     private async Task EnviarPruebaAsync()
     {
-        _btnEnviarPrueba.Enabled = false;
+        if (_enviandoPrueba) return;
+        _enviandoPrueba = true;
         try
         {
             if (!_chkPruebas.Checked) _chkPruebas.Checked = true;   // para que la prueba sea visible
@@ -398,7 +492,7 @@ public class MainForm : Form
         {
             MostrarAviso($"No se pudo enviar la prueba: {Motivo(ex)}.");
         }
-        finally { _btnEnviarPrueba.Enabled = true; }
+        finally { _enviandoPrueba = false; }
     }
 
     /// <summary>HU-07: exporta a Excel (.xlsx) o CSV respetando los filtros activos. Las pruebas no se exportan.</summary>
@@ -467,7 +561,7 @@ public class MainForm : Form
         try
         {
             await _servicio.BorrarPruebasAsync();
-            _lista.LimpiarPruebas();
+            _tabla.LimpiarPruebas();
             OcultarAviso();
             await RecargarAsync();
         }
@@ -478,8 +572,12 @@ public class MainForm : Form
     {
         using var f = new AjustesForm(_prefs, _servicio.CorreoActual);
         f.ShowDialog(this);
-        if (!f.CerrarSesionSolicitado) return;
+        if (f.CerrarSesionSolicitado) await CerrarSesionAsync();
+    }
 
+    /// <summary>HU-08: cierra sesion y vuelve al login.</summary>
+    private async Task CerrarSesionAsync()
+    {
         await _monitor.DisposeAsync();
         await _servicio.CerrarSesionAsync();
         CerrarSesionSolicitado = true;
@@ -489,12 +587,7 @@ public class MainForm : Form
     // =====================================================================
     //  Errores
     // =====================================================================
-    private static bool EsSesionVencida(Exception ex)
-    {
-        var m = ex.ToString();
-        return m.Contains("JWT", StringComparison.OrdinalIgnoreCase)
-            || m.Contains("401") || m.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool EsSesionVencida(Exception ex) => Reintentos.EsSesionVencida(ex);
 
     private static string Motivo(Exception ex) =>
         EsSesionVencida(ex) ? "la sesión venció" :
@@ -508,18 +601,15 @@ public class MainForm : Form
         {
             MessageBox.Show(this, "Tu sesión venció. Inicia sesión de nuevo.", AppInfo.Nombre,
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
-            await _monitor.DisposeAsync();
-            await _servicio.CerrarSesionAsync();
-            CerrarSesionSolicitado = true;
-            Close();
+            await CerrarSesionAsync();
             return;
         }
 
         MostrarAviso(Reintentos.EsTransitorio(ex)
             ? "Sin conexión. Reintentando…"
             : $"No se pudieron cargar los pagos: {ex.Message}");
-        _lista.MensajeVacio = "No se pudieron cargar los pagos.";
-        _lista.Invalidate();
+        _tabla.MensajeVacio = "No se pudieron cargar los pagos.";
+        _tabla.Invalidate();
         _reintento.Start();
     }
 

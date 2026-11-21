@@ -15,6 +15,9 @@ public static class Formato
     }
 
     public static string Fecha(DateTime utc) => ZonaLima.DeUtc(utc).ToString("dd/MM/yyyy", Cultura);
+    /// <summary>Hora de Lima en formato 24 h (13:15). Las pantallas usan este; la exportacion conserva el de 12 h.</summary>
+    public static string Hora24(DateTime utc) => ZonaLima.DeUtc(utc).ToString("HH:mm", Cultura);
+
     public static string Hora(DateTime utc) => ZonaLima.DeUtc(utc).ToString("hh:mm tt", Cultura);
 
     public static string Iniciales(string? nombre)

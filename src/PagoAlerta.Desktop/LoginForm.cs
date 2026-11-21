@@ -4,17 +4,25 @@ using PagoAlerta.Desktop.Ui;
 
 namespace PagoAlerta.Desktop;
 
-/// <summary>HU-01: login del admin. Error generico, "Recordar sesion", sin guardar contrasena.</summary>
+/// <summary>
+/// HU-01: login del admin. Pantalla dividida (panel azul + tarjeta). Error generico, "Recordar sesion",
+/// sin guardar contrasena. La logica no cambia; solo la presentacion y los efectos.
+/// </summary>
 public class LoginForm : Form
 {
     private readonly PagoService _servicio;
-    private readonly PanelRedondeado _tarjeta = new() { Sombra = true, Size = new Size(420, 520) };
-    private readonly CampoRedondeado _correo = new("Correo electrónico");
-    private readonly CampoRedondeado _clave = new("Contraseña", clave: true);
+    private readonly Panel _izquierda = new();
+    private readonly Panel _derecha = new();
+    private readonly PanelRedondeado _tarjeta = new() { Sombra = true, Size = new Size(470, 500) };
+    private readonly CampoRedondeado _correo = new("correo@tienda.com", radio: 14, alto: 50);
+    private readonly CampoRedondeado _clave = new("Contraseña", clave: true, radio: 14, alto: 50);
     private readonly CheckBox _recordar = new();
     private readonly Label _error = new();
     private readonly Label _estado = new();
-    private readonly BotonPrimario _ingresar = new() { Text = "Ingresar" };
+    private readonly BotonPildora _ingresar = new("Ingresar", BotonPildora.Estilo.Primario, alto: 52);
+    private readonly Suave _entrada = new(0f, 0.12f);
+    private readonly System.Windows.Forms.Timer _temblor = new() { Interval = 16 };
+    private int _pasoTemblor;
 
     public LoginForm(PagoService servicio)
     {
@@ -22,79 +30,148 @@ public class LoginForm : Form
         Text = AppInfo.Nombre;
         BackColor = Tema.Fondo;
         Font = Tema.Fuente(10f);
-        ClientSize = new Size(520, 640);
-        MinimumSize = new Size(480, 620);
+        ClientSize = new Size(1120, 680);
+        MinimumSize = new Size(900, 600);
         StartPosition = FormStartPosition.CenterScreen;
         DoubleBuffered = true;
+        KeyPreview = true;
+        try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? Icon; } catch { }
 
         Construir();
         Resize += (_, _) => CentrarTarjeta();
-        Shown += async (_, _) => await IntentarRestaurarAsync();
+        KeyDown += async (_, e) =>
+        {
+            if (e.KeyCode == Keys.Enter && _ingresar.Enabled) { e.SuppressKeyPress = true; await IngresarAsync(); }
+        };
+        _entrada.Cambio += CentrarTarjeta;
+        _temblor.Tick += (_, _) => Temblar();
+        Shown += async (_, _) => { _entrada.Hacia(1f); await IntentarRestaurarAsync(); };
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { _entrada.Dispose(); _temblor.Dispose(); }
+        base.Dispose(disposing);
     }
 
     private void Construir()
     {
-        const int margen = 32;
-        var ancho = _tarjeta.Width - margen * 2;
-        var y = 36;
-
-        var logo = new LogoPagoAlerta { Location = new Point((_tarjeta.Width - 72) / 2, y) };
-        y += 72 + 14;
-
+        // ---------- Panel izquierdo (azul) ----------
+        _izquierda.Dock = DockStyle.Left;
+        _izquierda.Width = 500;
+        _izquierda.BackColor = Tema.PrimarioOscuro;
+        var logo = new LogoCampana(76) { Location = new Point(70, 0), Claro = true };
         var titulo = new Label
         {
-            Text = AppInfo.Nombre, Font = Tema.Fuente(20f, FontStyle.Bold), ForeColor = Tema.Texto,
-            AutoSize = false, TextAlign = ContentAlignment.MiddleCenter,
-            Bounds = new Rectangle(margen, y, ancho, 38), BackColor = Color.Transparent
+            Text = AppInfo.Nombre, ForeColor = Color.White, Font = Tema.Fuente(34f, FontStyle.Bold),
+            AutoSize = true, BackColor = Color.Transparent
         };
-        y += 38;
-        var sub = new Label
+        var lema = new Label
         {
-            Text = "Inicia sesión para ver tus pagos", Font = Tema.Fuente(10f), ForeColor = Tema.TextoSecundario,
-            AutoSize = false, TextAlign = ContentAlignment.MiddleCenter,
-            Bounds = new Rectangle(margen, y, ancho, 24), BackColor = Color.Transparent
+            Text = "Mira en tu computadora los pagos que llegan al celular de la tienda: fecha, hora, nombre completo y monto.",
+            ForeColor = Color.FromArgb(215, 255, 255, 255), Font = Tema.Fuente(13f), BackColor = Color.Transparent,
+            AutoSize = false, Size = new Size(360, 110)
         };
-        y += 24 + 22;
+        _izquierda.Controls.AddRange(new Control[] { logo, titulo, lema });
+        _izquierda.Resize += (_, _) =>
+        {
+            var bloque = 76 + 24 + titulo.Height + 14 + lema.Height;
+            var y = Math.Max(40, (_izquierda.Height - bloque) / 2);
+            logo.Location = new Point(70, y);
+            titulo.Location = new Point(66, y + 76 + 20);
+            lema.Location = new Point(70, titulo.Bottom + 12);
+            lema.Width = Math.Max(200, _izquierda.Width - 140);
+        };
 
-        _correo.Bounds = new Rectangle(margen, y, ancho, 48); y += 48 + 12;
-        _clave.Bounds = new Rectangle(margen, y, ancho, 48); y += 48 + 10;
+        // ---------- Panel derecho ----------
+        _derecha.Dock = DockStyle.Fill;
+        _derecha.BackColor = Tema.Fondo;
 
-        _recordar.Text = "Recordar sesión";
-        _recordar.ForeColor = Tema.TextoSecundario;
+        const int margen = 38;
+        var ancho = _tarjeta.Width - margen * 2 - 8;
+        var y0 = 36;
+
+        _tarjeta.BackColor = Color.White;      // los controles de dentro pintan su fondo con este color
+        _tarjeta.ColorBorde = Color.Transparent;
+        var tit = new Label
+        {
+            Text = "Ingresar como administrador", ForeColor = Tema.PrimarioOscuro, Font = Tema.Fuente(17f, FontStyle.Bold),
+            AutoSize = false, Bounds = new Rectangle(margen, y0, ancho, 36), BackColor = Color.Transparent
+        };
+        y0 += 52;
+        var lblCorreo = Etiqueta("Correo", margen, y0, ancho); y0 += 24;
+        _correo.Bounds = new Rectangle(margen, y0, ancho, 50); y0 += 50 + 16;
+        var lblClave = Etiqueta("Contraseña", margen, y0, ancho); y0 += 24;
+        _clave.Bounds = new Rectangle(margen, y0, ancho, 50); y0 += 50 + 14;
+
+        _recordar.Text = "Recordar sesión en esta PC";
+        _recordar.ForeColor = Tema.Texto;
         _recordar.BackColor = Color.Transparent;
         _recordar.AutoSize = true;
         _recordar.Checked = true;
-        _recordar.Location = new Point(margen, y);
-        y += 30;
+        _recordar.Cursor = Cursors.Hand;
+        _recordar.Location = new Point(margen, y0);
+        y0 += 34;
 
         _error.ForeColor = Tema.Error;
         _error.BackColor = Color.Transparent;
-        _error.Font = Tema.Fuente(9.5f);
+        _error.Font = Tema.Fuente(9.5f, FontStyle.Bold);
         _error.AutoSize = false;
-        _error.Bounds = new Rectangle(margen, y, ancho, 24);
+        _error.Bounds = new Rectangle(margen, y0, ancho, 24);
         _error.Visible = false;
-        y += 28;
+        y0 += 28;
 
-        _ingresar.Bounds = new Rectangle(margen, y, ancho, 48);
+        _ingresar.Bounds = new Rectangle(margen, y0, ancho, 52);
         _ingresar.Click += async (_, _) => await IngresarAsync();
-        y += 48 + 10;
+        y0 += 52 + 14;
 
         _estado.ForeColor = Tema.TextoSecundario;
         _estado.BackColor = Color.Transparent;
         _estado.AutoSize = false;
         _estado.TextAlign = ContentAlignment.MiddleCenter;
-        _estado.Bounds = new Rectangle(margen, y, ancho, 22);
+        _estado.Font = Tema.Fuente(9.5f);
+        _estado.Bounds = new Rectangle(margen, y0, ancho, 20);
+        y0 += 24;
 
-        _tarjeta.Controls.AddRange(new Control[] { logo, titulo, sub, _correo, _clave, _recordar, _error, _ingresar, _estado });
-        _tarjeta.ColorBorde = Color.Transparent;
-        Controls.Add(_tarjeta);
-        AcceptButton = _ingresar;
+        var nota = new Label
+        {
+            Text = "Es el mismo usuario que usas en el celular. Solo el administrador puede ver los pagos.",
+            ForeColor = Tema.TextoSecundario, Font = Tema.Fuente(9f), BackColor = Color.Transparent,
+            AutoSize = false, TextAlign = ContentAlignment.TopCenter, Bounds = new Rectangle(margen, y0, ancho, 40)
+        };
+
+        _tarjeta.Controls.AddRange(new Control[] { tit, lblCorreo, _correo, lblClave, _clave, _recordar, _error, _ingresar, _estado, nota });
+        _derecha.Controls.Add(_tarjeta);
+
+        Controls.Add(_derecha);
+        Controls.Add(_izquierda);
         CentrarTarjeta();
     }
 
-    private void CentrarTarjeta() =>
-        _tarjeta.Location = new Point(Math.Max(0, (ClientSize.Width - _tarjeta.Width) / 2),
-                                      Math.Max(0, (ClientSize.Height - _tarjeta.Height) / 2));
+    private static Label Etiqueta(string texto, int x, int y, int ancho) => new()
+    {
+        Text = texto, ForeColor = Tema.TextoSecundario, Font = Tema.Fuente(9.5f, FontStyle.Bold),
+        AutoSize = false, Bounds = new Rectangle(x, y, ancho, 22), BackColor = Color.Transparent
+    };
+
+    private int _desplazamientoX;
+
+    private void CentrarTarjeta()
+    {
+        // Entrada: la tarjeta sube suavemente; error: se sacude lateralmente.
+        var subida = (int)((1f - Mezcla.EaseOutCubic(_entrada.Valor)) * 34);
+        _tarjeta.Location = new Point(
+            Math.Max(0, (_derecha.ClientSize.Width - _tarjeta.Width) / 2) + _desplazamientoX,
+            Math.Max(0, (_derecha.ClientSize.Height - _tarjeta.Height) / 2) + subida);
+    }
+
+    private void Temblar()
+    {
+        _pasoTemblor++;
+        _desplazamientoX = (int)(Math.Sin(_pasoTemblor * 1.3) * 12 * Math.Pow(0.86, _pasoTemblor));
+        if (_pasoTemblor > 26) { _temblor.Stop(); _desplazamientoX = 0; }
+        CentrarTarjeta();
+    }
 
     private void Ocupado(bool si, string? mensaje = null)
     {
@@ -147,5 +224,7 @@ public class LoginForm : Form
     {
         _error.Text = mensaje;
         _error.Visible = true;
+        _pasoTemblor = 0;
+        _temblor.Start();
     }
 }
