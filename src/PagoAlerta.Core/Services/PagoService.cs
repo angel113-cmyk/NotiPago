@@ -18,6 +18,7 @@ public class PagoService
     private readonly Supabase.Client _client;
     private readonly ISessionStore? _store;
     private bool _inicializado;
+    private volatile bool _recordar;
 
     public PagoService(SupabaseSettings settings, ISessionStore? store = null)
     {
@@ -106,27 +107,70 @@ public class PagoService
         }
     }
 
-    /// <summary>Lista pagos (mas recientes primero) aplicando filtros y paginacion.</summary>
-    public async Task<List<Pago>> ListarAsync(FiltroPagos? filtro = null, CancellationToken ct = default)
+
+    // ---------- Listado, resumen y borrado de pruebas ----------
+
+    private Supabase.Postgrest.Interfaces.IPostgrestTable<Pago> Consulta(FiltroPagos f)
+    {
+        Supabase.Postgrest.Interfaces.IPostgrestTable<Pago> q = _client.From<Pago>();
+        if (f.DesdeUtc is { } d) q = q.Filter("fecha_hora", Operator.GreaterThanOrEqual, d.ToString("o"));
+        if (f.HastaUtc is { } h) q = q.Filter("fecha_hora", Operator.LessThan, h.ToString("o"));
+        if (f.CreadosDesdeUtc is { } c) q = q.Filter("created_at", Operator.GreaterThan, c.ToString("o"));
+        if (!string.IsNullOrWhiteSpace(f.App)) q = q.Filter("app", Operator.Equals, f.App!);
+        if (!f.IncluirPruebas) q = q.Filter("es_prueba", Operator.Equals, "false");
+        if (!string.IsNullOrWhiteSpace(f.Nombre))
+            q = q.Filter("remitente", Operator.ILike, Texto.PatronIlike(f.Nombre!));
+        return q;
+    }
+
+    /// <summary>Una pagina de pagos. <see cref="HayMas"/> se calcula antes del filtro exacto por nombre.</summary>
+    public record PaginaPagos(List<Pago> Items, bool HayMas);
+
+    /// <summary>Lista pagos (mas recientes primero) con filtros; busqueda por nombre sin tildes ni mayusculas.</summary>
+    public async Task<PaginaPagos> ListarPaginaAsync(FiltroPagos? filtro = null, CancellationToken ct = default)
     {
         await AsegurarInicioAsync().ConfigureAwait(false);
         filtro ??= new FiltroPagos();
 
         var resp = await Reintentos.EjecutarAsync(() =>
-        {
-            Supabase.Postgrest.Interfaces.IPostgrestTable<Pago> q = _client.From<Pago>();
-            if (filtro.DesdeUtc is { } d) q = q.Filter("fecha_hora", Operator.GreaterThanOrEqual, d.ToString("o"));
-            if (filtro.HastaUtc is { } h) q = q.Filter("fecha_hora", Operator.LessThan, h.ToString("o"));
-            if (!string.IsNullOrWhiteSpace(filtro.App)) q = q.Filter("app", Operator.Equals, filtro.App!);
-            if (!string.IsNullOrWhiteSpace(filtro.Nombre))
-                q = q.Filter("remitente", Operator.ILike, $"%{filtro.Nombre!.Trim()}%");
-            return q.Order("fecha_hora", Ordering.Descending)
-                    .Range(filtro.Desplazamiento, filtro.Desplazamiento + filtro.Limite - 1)
-                    .Get(ct);
-        }, ct: ct).ConfigureAwait(false);
+            Consulta(filtro).Order("fecha_hora", Ordering.Descending)
+                .Range(filtro.Desplazamiento, filtro.Desplazamiento + filtro.Limite - 1)
+                .Get(ct), ct: ct).ConfigureAwait(false);
 
-        return resp.Models;
+        var items = resp.Models;
+        var hayMas = items.Count >= filtro.Limite;
+        if (!string.IsNullOrWhiteSpace(filtro.Nombre))
+            items = items.Where(p => Texto.Contiene(p.Remitente, filtro.Nombre)).ToList();
+        return new PaginaPagos(items, hayMas);
+    }
+
+    public async Task<List<Pago>> ListarAsync(FiltroPagos? filtro = null, CancellationToken ct = default) =>
+        (await ListarPaginaAsync(filtro, ct).ConfigureAwait(false)).Items;
+
+    /// <summary>HU-05: total y cantidad del rango. Solo recibidos y sin pruebas.</summary>
+    public async Task<ResumenPagos> ResumenAsync(FiltroPagos filtro, CancellationToken ct = default)
+    {
+        var f = filtro.Clonar();
+        f.IncluirPruebas = false;   // las pruebas nunca suman
+        f.Limite = 1000;
+        decimal total = 0; var cantidad = 0;
+        for (f.Desplazamiento = 0; ; f.Desplazamiento += f.Limite)
+        {
+            var pagina = await ListarPaginaAsync(f, ct).ConfigureAwait(false);
+            foreach (var p in pagina.Items.Where(p => p.Tipo == TipoPago.Recibido && !p.EsPrueba))
+            { total += p.Monto; cantidad++; }
+            if (!pagina.HayMas) break;
+        }
+        return new ResumenPagos(total, cantidad);
+    }
+
+    /// <summary>HT-21: borra solo pagos de prueba (la base de datos tambien lo impone con RLS).</summary>
+    public async Task BorrarPruebasAsync(CancellationToken ct = default)
+    {
+        await AsegurarInicioAsync().ConfigureAwait(false);
+        await Reintentos.EjecutarAsync(() =>
+            _client.From<Pago>().Filter("es_prueba", Operator.Equals, "true").Delete(cancellationToken: ct),
+            ct: ct).ConfigureAwait(false);
     }
 }
-
 
