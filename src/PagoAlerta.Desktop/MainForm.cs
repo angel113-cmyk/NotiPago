@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Media;
 using PagoAlerta.Core;
 using PagoAlerta.Core.Exportacion;
 using PagoAlerta.Core.Logging;
@@ -58,12 +57,20 @@ public class MainForm : Form
     private string? _appFiltro;
     private bool _hayMas, _cargando, _suspender, _enviandoPrueba;
 
+    // Segundo plano: icono junto al reloj de Windows
+    private readonly NotifyIcon _bandeja = new();
+    private readonly bool _iniciarOculto;
+    private bool _cierreReal, _avisoBandejaMostrado;
+
     public bool CerrarSesionSolicitado { get; private set; }
 
-    public MainForm(PagoService servicio)
+    /// <param name="iniciarOculto">Arranque con Windows: la ventana queda oculta en la bandeja.</param>
+    public MainForm(PagoService servicio, bool iniciarOculto = false)
     {
         _servicio = servicio;
+        _iniciarOculto = iniciarOculto;
         _monitor = new PagoMonitor(servicio);
+        if (iniciarOculto) { Opacity = 0; ShowInTaskbar = false; }
 
         Text = AppInfo.Nombre;
         BackColor = Tema.Fondo;
@@ -76,8 +83,30 @@ public class MainForm : Form
 
         ConstruirUi();
 
-        Shown += async (_, _) => await IniciarAsync();
-        FormClosing += (_, _) => _ = _monitor.DisposeAsync().AsTask();
+        Shown += async (_, _) =>
+        {
+            if (_iniciarOculto)
+            {
+                Hide();
+                Opacity = 1;
+                ShowInTaskbar = true;
+                MostrarAvisoBandeja();
+            }
+            await IniciarAsync();
+        };
+        FormClosing += (_, e) =>
+        {
+            // La X no cierra la app: la oculta junto al reloj y sigue recibiendo pagos.
+            if (!_cierreReal && !CerrarSesionSolicitado && e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+                OcultarABandeja();
+                return;
+            }
+            _bandeja.Visible = false;
+            _bandeja.Dispose();
+            _ = _monitor.DisposeAsync().AsTask();
+        };
         _debounceBusqueda.Tick += async (_, _) => { _debounceBusqueda.Stop(); await RecargarAsync(); };
         _reintento.Tick += async (_, _) => { if (_lblAviso.Visible) await RecargarAsync(); else _reintento.Stop(); };
     }
@@ -230,6 +259,69 @@ public class MainForm : Form
         ActualizarEncabezado();
         _detalle.Mostrar(null);
         Load += (_, _) => AjustarAltoFiltros();
+        ConstruirBandeja();
+    }
+
+    // =====================================================================
+    //  Segundo plano (bandeja del sistema) y avisos
+    // =====================================================================
+    private void ConstruirBandeja()
+    {
+        var menu = new ContextMenuStrip { Font = Tema.Fuente(10f), ShowImageMargin = false };
+        menu.Items.Add("Abrir PagoAlerta", null, (_, _) => MostrarDesdeBandeja());
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Salir", null, (_, _) => Salir());
+        _bandeja.Icon = Icon;
+        _bandeja.Text = $"{AppInfo.Nombre} — recibiendo pagos";
+        _bandeja.ContextMenuStrip = menu;
+        _bandeja.DoubleClick += (_, _) => MostrarDesdeBandeja();
+        _bandeja.BalloonTipClicked += (_, _) => MostrarDesdeBandeja();
+        _bandeja.Visible = true;
+    }
+
+    /// <summary>Muestra la ventana (desde el icono de la bandeja o al abrir una segunda copia de la app).</summary>
+    public void MostrarDesdeBandeja()
+    {
+        ShowInTaskbar = true;
+        Opacity = 1;
+        Show();
+        if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+        Activate();
+        BringToFront();
+    }
+
+    private void OcultarABandeja()
+    {
+        Hide();
+        MostrarAvisoBandeja();
+    }
+
+    private void MostrarAvisoBandeja()
+    {
+        if (_avisoBandejaMostrado) return;
+        _avisoBandejaMostrado = true;
+        _bandeja.ShowBalloonTip(4500, AppInfo.Nombre, "Sigue funcionando en segundo plano. Te avisaré cuando llegue un pago.", ToolTipIcon.Info);
+    }
+
+    /// <summary>Cierra la app de verdad (la X solo la oculta).</summary>
+    private void Salir()
+    {
+        _cierreReal = true;
+        Close();
+    }
+
+    /// <summary>Sonido y aviso de Windows al llegar un pago, aunque la ventana este oculta o con otros filtros.</summary>
+    private void AvisarPago(Pago p)
+    {
+        if (!Avisos.DebeAvisar(p)) return;
+        if (_prefs.Sonido) Sonido.Reproducir();
+
+        var ventanaALaVista = Visible && WindowState != FormWindowState.Minimized && ReferenceEquals(ActiveForm, this);
+        if (_prefs.AvisoPago && !ventanaALaVista)
+        {
+            var (titulo, cuerpo) = Avisos.DePago(p);
+            _bandeja.ShowBalloonTip(6000, titulo, cuerpo, ToolTipIcon.Info);
+        }
     }
 
     private void PosicionarBarra(Panel barra)
@@ -465,9 +557,9 @@ public class MainForm : Form
 
     private void AlLlegarPago(Pago p) => EnUi(() =>
     {
+        AvisarPago(p);                 // sonido + aviso de Windows, sin importar los filtros activos
         if (!Coincide(p)) return;
         _tabla.InsertarResaltado(p);
-        if (_prefs.Sonido) SystemSounds.Asterisk.Play();
         if (!p.EsPrueba && p.Tipo == TipoPago.Recibido)
         {
             ActualizarUltimoPago();

@@ -35,6 +35,7 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Crear un acceso directo en el &Escritorio"; GroupDescription: "Accesos directos:"
+Name: "autostart"; Description: "Iniciar {#NombreApp} al encender Windows (queda junto al reloj, recibiendo pagos)"; GroupDescription: "Segundo plano:"; Flags: unchecked
 
 [Files]
 Source: "publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -44,9 +45,40 @@ Name: "{group}\{#NombreApp}"; Filename: "{app}\{#Ejecutable}"
 Name: "{group}\Desinstalar {#NombreApp}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#NombreApp}"; Filename: "{app}\{#Ejecutable}"; Tasks: desktopicon
 
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#NombreApp}"; ValueData: """{app}\{#Ejecutable}"" --segundo-plano"; Tasks: autostart
+
 [Run]
 Filename: "{app}\{#Ejecutable}"; Description: "Abrir {#NombreApp}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 ; Desinstalacion limpia: se borran tambien los datos locales (sesion cifrada, preferencias y registros).
 Type: filesandordirs; Name: "{localappdata}\{#NombreApp}"
+
+[Code]
+// La app puede estar oculta junto al reloj de Windows: se cierra antes de instalar o desinstalar.
+procedure CerrarAplicacion();
+var
+  CodigoSalida: Integer;
+begin
+  Exec('taskkill.exe', '/F /IM {#Ejecutable}', '', SW_HIDE, ewWaitUntilTerminated, CodigoSalida);
+end;
+
+function InitializeSetup(): Boolean;
+begin
+  CerrarAplicacion();
+  Result := True;
+end;
+
+function InitializeUninstall(): Boolean;
+begin
+  CerrarAplicacion();
+  Result := True;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  // Desinstalacion limpia: tambien se quita el inicio con Windows (lo pudo activar la app desde Ajustes).
+  if CurUninstallStep = usPostUninstall then
+    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#NombreApp}');
+end;

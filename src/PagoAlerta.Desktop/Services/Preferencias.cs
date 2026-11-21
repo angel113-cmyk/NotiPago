@@ -3,10 +3,14 @@ using PagoAlerta.Core;
 
 namespace PagoAlerta.Desktop.Services;
 
-/// <summary>Preferencias locales no sensibles (por ejemplo, el sonido de pago nuevo).</summary>
+/// <summary>Preferencias locales no sensibles (sonido y aviso de pago nuevo).</summary>
 public class Preferencias
 {
-    public bool Sonido { get; set; }   // apagado por defecto
+    /// <summary>Sonido al llegar un pago (tambien con la ventana oculta). Encendido por defecto.</summary>
+    public bool Sonido { get; set; } = true;
+
+    /// <summary>Aviso de Windows ("Pago recibido · S/ 35.00 · ...") cuando la ventana no esta a la vista.</summary>
+    public bool AvisoPago { get; set; } = true;
 
     private static string Ruta
     {

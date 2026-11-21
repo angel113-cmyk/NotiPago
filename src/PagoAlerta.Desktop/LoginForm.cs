@@ -23,10 +23,14 @@ public class LoginForm : Form
     private readonly Suave _entrada = new(0f, 0.12f);
     private readonly System.Windows.Forms.Timer _temblor = new() { Interval = 16 };
     private int _pasoTemblor;
+    private readonly bool _silencioso;
 
-    public LoginForm(PagoService servicio)
+    /// <param name="silencioso">Arranque con Windows: la ventana no se ve hasta saber si hay una sesion guardada.</param>
+    public LoginForm(PagoService servicio, bool silencioso = false)
     {
         _servicio = servicio;
+        _silencioso = silencioso;
+        if (silencioso) { Opacity = 0; ShowInTaskbar = false; }
         Text = AppInfo.Nombre;
         BackColor = Tema.Fondo;
         Font = Tema.Fuente(10f);
@@ -187,8 +191,13 @@ public class LoginForm : Form
         Ocupado(true, "Restaurando sesión…");
         var ok = await _servicio.RestaurarSesionAsync();
         Ocupado(false);
-        if (ok) { DialogResult = DialogResult.OK; Close(); }
-        else _correo.Caja.Focus();
+        if (ok) { DialogResult = DialogResult.OK; Close(); return; }
+
+        if (_silencioso)   // no hay sesion guardada: ahora si se muestra el login
+        {
+            Opacity = 1; ShowInTaskbar = true; Activate();
+        }
+        _correo.Caja.Focus();
     }
 
     private async Task IngresarAsync()
