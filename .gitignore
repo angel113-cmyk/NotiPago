@@ -1,0 +1,32 @@
+## Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+TestResults/
+publish/
+artifacts/
+*.nupkg
+
+## Android
+*.apk
+*.aab
+*.keystore
+*.jks
+keystore.properties
+
+## Secretos y configuracion local (NUNCA subir)
+appsettings.json
+appsettings.*.json
+!appsettings.example.json
+.env
+*.pfx
+secrets.json
+
+## Herramientas locales
+.claude/
+
+## Instaladores generados
+installer/Output/
