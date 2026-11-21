@@ -43,8 +43,22 @@ public class PermisosActivity : PantallaBase
             "Para que Android no cierre la app en segundo plano, ponla como \"Sin restricciones\" " +
             "o \"No optimizar\".\n1. Toca \"Abrir ajuste\".\n2. Busca PagoAlerta y elige \"No optimizar\" / \"Sin restricciones\".",
             14, Colores.Texto), Vistas.Margen(this, 0, 12));
-        p2.AddView(Vistas.Boton(this, "Abrir ajuste", true, AbrirAjusteBateria));
+        p2.AddView(Vistas.Boton(this, "Excluir de la batería ahora", true, PedirExclusionBateria), Vistas.Margen(this, 0, 10));
+        p2.AddView(Vistas.Boton(this, "Abrir lista de ajustes de batería", false, AbrirAjusteBateria));
         c.AddView(p2, Vistas.Margen(this, 0, 14));
+
+        // Paso 3: guia segun la marca del celular (HT-08)
+        var guia = GuiaBateria.ParaEsteEquipo();
+        var p3 = Vistas.Tarjeta(this);
+        p3.AddView(Vistas.Etiqueta(this, $"Paso 3 · Ajustes de {guia.Marca}", 17, Colores.Texto, negrita: true));
+        p3.AddView(Vistas.Etiqueta(this,
+            "Muchas marcas cierran las apps en segundo plano aunque no tengas ahorro de batería. Revisa esto una sola vez:",
+            14, Colores.TextoSecundario), Vistas.Margen(this, 4, 10));
+        for (var i = 0; i < guia.Pasos.Length; i++)
+            p3.AddView(Vistas.Etiqueta(this, $"{i + 1}. {guia.Pasos[i]}", 14, Colores.Texto), Vistas.Margen(this, 0, 6));
+        if (guia.Pantallas.Length > 0)
+            p3.AddView(Vistas.Boton(this, "Abrir ajustes de la marca", false, () => AbrirPantallasMarca(guia)), Vistas.Margen(this, 8));
+        c.AddView(p3, Vistas.Margen(this, 0, 14));
 
         c.AddView(Vistas.Boton(this, "Volver", false, Finish), Vistas.Margen(this));
     }
@@ -67,6 +81,31 @@ public class PermisosActivity : PantallaBase
 
     private void AbrirAjusteBateria() => Abrir(() => new Intent(Settings.ActionIgnoreBatteryOptimizationSettings),
         "No se pudo abrir el ajuste. Ve a Ajustes > Batería.");
+
+    /// <summary>Muestra el dialogo del sistema "¿Permitir que PagoAlerta ignore las optimizaciones de batería?".</summary>
+    private void PedirExclusionBateria()
+    {
+        if (Servicios.IgnoraBateria(this)) { Aviso("Ya está excluida de la optimización de batería."); return; }
+        Abrir(() => new Intent(Settings.ActionRequestIgnoreBatteryOptimizations, Uri.FromParts("package", PackageName, null)),
+            "No se pudo abrir el diálogo. Usa \"Abrir lista de ajustes de batería\".");
+    }
+
+    private void AbrirPantallasMarca(GuiaBateria.Guia guia)
+    {
+        foreach (var (paquete, clase) in guia.Pantallas)
+        {
+            try
+            {
+                var i = new Intent();
+                i.SetComponent(new ComponentName(paquete, clase));
+                StartActivity(i);
+                return;
+            }
+            catch (Exception) { /* esa pantalla no existe en esta version: se prueba la siguiente */ }
+        }
+        Aviso("No se pudo abrir la pantalla de tu marca. Sigue los pasos escritos arriba.");
+        AbrirInfoApp();
+    }
 
     private void AbrirInfoApp() => Abrir(
         () => new Intent(Settings.ActionApplicationDetailsSettings, Uri.FromParts("package", PackageName, null)),

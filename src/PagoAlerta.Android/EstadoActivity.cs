@@ -1,5 +1,6 @@
 ﻿using Android.Graphics;
 using PagoAlerta.Core;
+using PagoAlerta.Core.Logging;
 using PagoAlerta.Core.Time;
 using PagoAlerta.Movil.Infra;
 using PagoAlerta.Movil.Ui;
@@ -20,7 +21,7 @@ public class EstadoActivity : PantallaBase
     private Button _btnPrueba = null!;
     private Handler? _handler;
     private Java.Lang.IRunnable _tick = null!;
-    private bool _construyendo;
+    private bool _construyendo, _servicioIniciado;
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
@@ -80,6 +81,16 @@ public class EstadoActivity : PantallaBase
         t2.AddView(_resultadoPrueba, Vistas.Margen(this, 10));
         c.AddView(t2, Vistas.Margen(this, 0, 14));
 
+        // Cola y registro
+        var t3 = Vistas.Tarjeta(this);
+        t3.AddView(Vistas.Etiqueta(this, "Envíos pendientes", 18, Colores.Texto, negrita: true));
+        t3.AddView(Vistas.Etiqueta(this,
+            "Si no hay internet, los pagos se guardan en el celular y se envían solos, en orden, al volver la conexión.",
+            14, Colores.TextoSecundario), Vistas.Margen(this, 4, 12));
+        t3.AddView(Vistas.Boton(this, "Reintentar envío ahora", false, async () => await ReintentarAsync()), Vistas.Margen(this, 0, 10));
+        t3.AddView(Vistas.Boton(this, "Ver registro de errores", false, MostrarRegistro));
+        c.AddView(t3, Vistas.Margen(this, 0, 14));
+
         // Accesos
         c.AddView(Vistas.Boton(this, "Apps a monitorear", false,
             () => StartActivity(new Intent(this, typeof(AppsActivity)))), Vistas.Margen(this, 0, 10));
@@ -89,6 +100,40 @@ public class EstadoActivity : PantallaBase
 
         _handler = new Handler(Looper.MainLooper!);
         _tick = new Java.Lang.Runnable(() => { Refrescar(); _handler?.PostDelayed(_tick, 3000); });
+
+        // Android 13+: permiso para mostrar la notificacion persistente del monitoreo.
+        if (Build.VERSION.SdkInt >= BuildVersionCodes.Tiramisu &&
+            CheckSelfPermission("android.permission.POST_NOTIFICATIONS") != Permission.Granted)
+            RequestPermissions(new[] { "android.permission.POST_NOTIFICATIONS" }, 10);
+    }
+
+    private async Task ReintentarAsync()
+    {
+        Aviso("Reintentando…", false);
+        var r = await Servicios.ProcesarColaAsync(volvioLaRed: true);
+        Refrescar();
+        Aviso(r.Pendientes == 0 ? "Todo enviado." : $"Quedan {r.Pendientes} pendientes.", false);
+    }
+
+    private void MostrarRegistro()
+    {
+        var ruta = Registro.RutaActual;
+        var texto = "Aún no hay registros.";
+        try
+        {
+            if (ruta is not null && File.Exists(ruta))
+            {
+                var lineas = File.ReadAllLines(ruta);
+                texto = string.Join("\n", lineas.Skip(Math.Max(0, lineas.Length - 40)));
+            }
+        }
+        catch (Exception ex) { texto = "No se pudo leer el registro: " + ex.Message; }
+
+        new AlertDialog.Builder(this)!
+            .SetTitle("Registro de errores")!
+            .SetMessage(texto)!
+            .SetPositiveButton("Cerrar", (IDialogInterfaceOnClickListener?)null)!
+            .Show();
     }
 
     protected override void OnResume()
@@ -114,6 +159,18 @@ public class EstadoActivity : PantallaBase
         _construyendo = false;
 
         _avisoPermiso.Visibility = permiso ? ViewStates.Gone : ViewStates.Visible;
+
+        // HT-08: el servicio en primer plano vive mientras el monitoreo este activo.
+        var debeCorrer = activo && permiso;
+        if (debeCorrer != _servicioIniciado)
+        {
+            _servicioIniciado = debeCorrer;
+            if (debeCorrer) MonitorService.Iniciar(this); else MonitorService.Detener(this);
+        }
+
+        var pend = Servicios.Pendientes;
+        _pendientes.Text = pend.ToString();
+        _pendientes.SetTextColor(pend > 0 ? Colores.Ambar : Colores.Texto);
 
         (string texto, Color color) = !permiso ? ("Sin permiso de notificaciones", Colores.Ambar)
                                     : activo ? ("Activo: detectando pagos", Colores.Verde)
@@ -170,6 +227,7 @@ public class EstadoActivity : PantallaBase
 
     private async Task CerrarSesionAsync()
     {
+        MonitorService.Detener(this);
         if (Servicios.Pago is not null) await Servicios.Pago.CerrarSesionAsync();
         await IrALoginAsync(cerrar: false);
     }

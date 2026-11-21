@@ -13,10 +13,11 @@
     <RootNamespace>PagoAlerta.Movil</RootNamespace>
     <AssemblyName>PagoAlerta.Android</AssemblyName>
     <ApplicationId>com.pagoalerta.app</ApplicationId>
-    <ApplicationVersion>1</ApplicationVersion>
-    <ApplicationDisplayVersion>0.3.0</ApplicationDisplayVersion>
+    <ApplicationVersion>4</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
     <!-- El cliente Supabase usa reflexion (JSON): no recortar el codigo en Release. -->
     <PublishTrimmed>false</PublishTrimmed>
     <AndroidLinkMode>None</AndroidLinkMode>
   </PropertyGroup>
 </Project>
+

@@ -1,3 +1,4 @@
+using PagoAlerta.Core.Logging;
 using PagoAlerta.Movil.Infra;
 
 namespace PagoAlerta.Movil;
@@ -11,5 +12,19 @@ public class PagoAlertaApp : Application
     {
         base.OnCreate();
         Servicios.Iniciar(this);
+
+        // HT-17: errores no controlados al registro (solo tipo y mensaje recortado).
+        AndroidEnvironment.UnhandledExceptionRaiser += (_, e) =>
+        {
+            Registro.Error("Error no controlado", e.Exception);
+            e.Handled = false;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            Registro.Error("Error fatal", e.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Registro.Error("Error en tarea de fondo", e.Exception);
+            e.SetObserved();
+        };
     }
 }

@@ -1,4 +1,5 @@
 using Android.Service.Notification;
+using PagoAlerta.Core.Logging;
 using PagoAlerta.Core.Parsing;
 using PagoAlerta.Core.Services;
 using PagoAlerta.Movil.Infra;
@@ -14,6 +15,25 @@ namespace PagoAlerta.Movil;
 [IntentFilter(new[] { "android.service.notification.NotificationListenerService" })]
 public class PagoListenerService : NotificationListenerService
 {
+    public override void OnListenerConnected()
+    {
+        base.OnListenerConnected();
+        Registro.Info("Lector de notificaciones conectado");
+        if (Servicios.Prefs.MonitoreoActivo) MonitorService.Iniciar(this);
+    }
+
+    public override void OnListenerDisconnected()
+    {
+        base.OnListenerDisconnected();
+        Registro.Aviso("Lector de notificaciones desconectado");
+        try
+        {
+            // Android puede soltar el lector (memoria, ahorro de bateria): se pide reconectarlo.
+            RequestRebind(new ComponentName(this, Java.Lang.Class.FromType(typeof(PagoListenerService))));
+        }
+        catch (Exception ex) { Registro.Error("No se pudo pedir la reconexión", ex); }
+    }
+
     public override void OnNotificationPosted(StatusBarNotification? sbn)
     {
         if (sbn?.Notification is null || sbn.PackageName is null) return;
@@ -75,11 +95,13 @@ public class PagoListenerService : NotificationListenerService
             var pago = PagoFactory.DesdeDetectado(detectado);
             if (Servicios.YaEnviadoRecientemente(pago.Hash)) return;           // Android repitio la notificacion (HU-18)
 
-            await Servicios.EnviarAsync(pago).ConfigureAwait(false);
+            // HU-14: primero a la cola local (no se pierde nada), luego se intenta enviar.
+            await Servicios.EncolarYEnviarAsync(pago).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            Servicios.Prefs.UltimoError = $"Error procesando una notificación: {ex.Message}";
+            Servicios.Prefs.UltimoError = "Error procesando una notificación.";
+            Registro.Error("Error procesando una notificación", ex);
         }
     }
 }

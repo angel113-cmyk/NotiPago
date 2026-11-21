@@ -36,3 +36,6 @@ Android.local.props
 
 ## APK de prueba local
 apk-prueba/
+
+## APK firmado generado
+dist/
