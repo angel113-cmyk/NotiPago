@@ -29,6 +29,17 @@ public class PagoService
             AutoRefreshToken = true,
             AutoConnectRealtime = false
         });
+
+        // HT-12: cada vez que el token se renueva, se actualiza el almacen seguro (si el usuario eligio recordar).
+        _client.Auth.AddStateChangedListener((remitente, estado) =>
+        {
+            if (estado == Supabase.Gotrue.Constants.AuthState.TokenRefreshed && _recordar && _store is not null)
+            {
+                var s = _client.Auth.CurrentSession;
+                if (s?.AccessToken is not null && s.RefreshToken is not null)
+                    _ = _store.GuardarAsync(new SesionGuardada(s.AccessToken, s.RefreshToken));
+            }
+        });
     }
 
     public Supabase.Client Client => _client;
@@ -52,6 +63,7 @@ public class PagoService
                 .ConfigureAwait(false);
             if (sesion?.AccessToken is null) return ResultadoLogin.CredencialesInvalidas;
 
+            _recordar = recordar;
             if (_store is not null)
             {
                 if (recordar && sesion.RefreshToken is not null)
@@ -77,6 +89,7 @@ public class PagoService
             await AsegurarInicioAsync().ConfigureAwait(false);
             var sesion = await _client.Auth.SetSession(g.AccessToken, g.RefreshToken).ConfigureAwait(false);
             if (sesion?.AccessToken is null || sesion.RefreshToken is null) { await _store.BorrarAsync(); return false; }
+            _recordar = true;
             await _store.GuardarAsync(new SesionGuardada(sesion.AccessToken, sesion.RefreshToken)).ConfigureAwait(false);
             return true;
         }
@@ -87,6 +100,7 @@ public class PagoService
     public async Task CerrarSesionAsync()
     {
         try { await _client.Auth.SignOut().ConfigureAwait(false); } catch { /* sin red: igual se limpia lo local */ }
+        _recordar = false;
         if (_store is not null) await _store.BorrarAsync().ConfigureAwait(false);
     }
 
