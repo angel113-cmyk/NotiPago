@@ -6,7 +6,9 @@ App para UNA tienda. El celular Android lee notificaciones de pagos (Yape, Plin,
 ## Decisiones
 - C#, .NET 11 (C# 15). Si el workload de Android no soporta .NET 11, usar .NET 10 solo para ese proyecto y avisar. NO usar .NET 8 ni 9.
 - Solución: Core (modelos, parser, cliente Supabase), Desktop (Windows Forms), Android (.NET for Android, sin MAUI).
-- Backend: Supabase (PostgreSQL + Auth + Realtime). Un solo usuario admin, sin registro público.
+- Backend: Supabase (PostgreSQL + Auth + Realtime). Registro ABIERTO por decisión del dueño: la cuenta se crea desde la app Android; PC y celular deben usar la MISMA cuenta (RLS: cada cuenta solo ve sus pagos).
+- Pagos de prueba (`es_prueba`): no suman en totales ni se exportan; se pueden borrar (única excepción al "sin DELETE").
+- Android: cola local SQLite + servicio en primer plano + receptor de arranque. Escritorio: Setup.exe con Inno Setup. APK firmado con keystore fuera del repo (`%USERPROFILE%\PagoAlerta-keys`).
 - Zona horaria de visualización: America/Lima. Moneda por defecto: PEN (S/). BD en UTC (timestamptz).
 - En las apps SOLO URL del proyecto y clave anon/publishable. NUNCA service_role.
 - Nombre de la app ("PagoAlerta") en una sola constante/recurso. No copiar logos ni marca de Yape ni de bancos.
@@ -31,11 +33,16 @@ Tabla `pagos` con RLS: solo SELECT e INSERT del dueño (user_id = auth.uid()); s
 
 ---
 
+
+
+
+
+
 <!-- cloude-code-toolbox:mcp-skills-awareness-begin -->
 
 ### MCP & Skills awareness (Claude Code ToolBox)
 
-_Last synced: 2026-11-21T15:06:04.634Z._
+_Last synced: 2026-11-21T17:19:45.556Z._
 
 - **Full report:** `.claude/cloude-code-toolbox-mcp-skills-awareness.md` in this workspace (auto-overwritten on each scan). Use it as ground truth for configured servers and skill folders.
 - **MCP:** For **live tools** in Claude Code, enable the matching server via `/mcp`. Servers are configured in `~/.claude.json` (user) and `.mcp.json` (project).
