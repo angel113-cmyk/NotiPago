@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!-- Versionado: cambiar solo aqui -->
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix>sprint1</VersionSuffix>
+    <Company>PagoAlerta</Company>
+    <Product>PagoAlerta</Product>
+    <Copyright>PagoAlerta</Copyright>
+  </PropertyGroup>
+</Project>

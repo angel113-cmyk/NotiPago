@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PagoAlerta.Android/PagoAlerta.Android.csproj" />
+    <Project Path="src/PagoAlerta.Core/PagoAlerta.Core.csproj" />
+    <Project Path="src/PagoAlerta.Desktop/PagoAlerta.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PagoAlerta.Core.Tests/PagoAlerta.Core.Tests.csproj" />
+  </Folder>
+</Solution>
