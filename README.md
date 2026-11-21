@@ -32,6 +32,13 @@ Celular Android  ──►  Supabase (PostgreSQL + Auth + Realtime)  ──►  
 
 > La PC y el celular deben iniciar sesión con **la misma cuenta**: cada cuenta solo ve sus propios pagos.
 
+**Si "Crear cuenta" no funciona**, revisa en *Authentication → Sign In / Providers*:
+- el proveedor **Email** debe estar **habilitado** (*Enable email provider*);
+- **Allow new users to sign up** debe estar encendido;
+- **Confirm email** debe estar apagado (si no, la cuenta se crea pero no puede entrar hasta confirmar un correo).
+
+Alternativa: crea el usuario a mano en *Authentication → Users → Add user* marcando *Auto Confirm User*.
+
 ## 2. Configuración de las apps
 
 Copia `appsettings.example.json` como `appsettings.json` y completa la URL y la clave anon en **ambos** sitios
