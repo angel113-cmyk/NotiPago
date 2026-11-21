@@ -30,3 +30,12 @@ secrets.json
 
 ## Instaladores generados
 installer/Output/
+
+## Rutas locales de Android
+Android.local.props
+
+## APK de prueba local
+apk-prueba/
+
+## APK firmado generado
+dist/

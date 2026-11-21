@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing.Drawing2D;
 
@@ -26,7 +26,9 @@ public class PanelRedondeado : Panel
     protected override void OnPaintBackground(PaintEventArgs e)
     {
         // Pinta el fondo del padre para que las esquinas queden limpias.
-        using var b = new SolidBrush(Parent?.BackColor ?? Tema.Fondo);
+        Control? p = Parent;
+        while (p is not null && p.BackColor.A == 0) p = p.Parent;
+        using var b = new SolidBrush(p?.BackColor ?? Tema.Fondo);
         e.Graphics.FillRectangle(b, ClientRectangle);
     }
 
@@ -97,13 +99,16 @@ public class CampoRedondeado : PanelRedondeado
 {
     public TextBox Caja { get; } = new();
 
-    public CampoRedondeado(string placeholder, bool clave = false)
+    private readonly Suave _foco = new(0f, 0.3f);
+
+    public CampoRedondeado(string placeholder, bool clave = false, int radio = Tema.RadioCampo, int alto = 48)
     {
-        Radio = Tema.RadioCampo;
-        Height = 48;
+        Radio = radio;
+        Height = alto;
         Padding = new Padding(14, 0, 14, 0);
+        _foco.Cambio += () => { ColorBorde = Mezcla.De(Tema.Borde, Tema.Primario, _foco.Valor); Invalidate(); };
         Caja.BorderStyle = BorderStyle.None;
-        Caja.Font = Tema.Fuente(11f);
+        Caja.Font = Tema.Fuente(alto <= 40 ? 10f : 11f);
         Caja.ForeColor = Tema.Texto;
         Caja.BackColor = Tema.Tarjeta;
         Caja.PlaceholderText = placeholder;
@@ -112,8 +117,8 @@ public class CampoRedondeado : PanelRedondeado
         Caja.Width = Width - 28;
         Caja.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         Controls.Add(Caja);
-        Caja.GotFocus += (_, _) => { ColorBorde = Tema.Primario; Invalidate(); };
-        Caja.LostFocus += (_, _) => { ColorBorde = Tema.Borde; Invalidate(); };
+        Caja.GotFocus += (_, _) => _foco.Hacia(1f);
+        Caja.LostFocus += (_, _) => _foco.Hacia(0f);
         Click += (_, _) => Caja.Focus();
         Resize += (_, _) => Centrar();
         Centrar();
@@ -128,47 +133,3 @@ public class CampoRedondeado : PanelRedondeado
     [AllowNull]
     public override string Text { get => Caja.Text; set => Caja.Text = value ?? ""; }
 }
-
-/// <summary>Logo propio: cuadrado azul redondeado con campana y "S/" (no usa marcas de terceros).</summary>
-public class LogoPagoAlerta : Control
-{
-    public LogoPagoAlerta()
-    {
-        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
-        Size = new Size(72, 72);
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        using (var bg = new SolidBrush(Parent?.BackColor ?? Tema.Fondo)) g.FillRectangle(bg, ClientRectangle);
-
-        var s = Math.Min(Width, Height) - 1;
-        using var caja = Tema.Redondeado(new Rectangle(0, 0, s, s), (int)(s * 0.26));
-        using (var b = new SolidBrush(Tema.Primario)) g.FillPath(b, caja);
-
-        // Campana (blanca) en la parte superior.
-        float cx = s / 2f, top = s * 0.14f;
-        using var campana = new GraphicsPath();
-        campana.AddArc(cx - s * 0.19f, top, s * 0.38f, s * 0.38f, 180, 180);
-        campana.AddLine(cx + s * 0.19f, top + s * 0.19f, cx + s * 0.23f, top + s * 0.40f);
-        campana.AddLine(cx + s * 0.23f, top + s * 0.40f, cx - s * 0.23f, top + s * 0.40f);
-        campana.AddLine(cx - s * 0.23f, top + s * 0.40f, cx - s * 0.19f, top + s * 0.19f);
-        campana.CloseFigure();
-        using (var w = new SolidBrush(Color.White)) g.FillPath(w, campana);
-        using (var w = new SolidBrush(Color.White))
-            g.FillEllipse(w, cx - s * 0.05f, top + s * 0.42f, s * 0.10f, s * 0.07f);
-
-        // Punto de notificacion cian.
-        using (var c = new SolidBrush(Tema.Acento))
-            g.FillEllipse(c, cx + s * 0.12f, top - s * 0.02f, s * 0.13f, s * 0.13f);
-
-        // "S/" debajo.
-        using var f = Tema.Fuente(s * 0.20f, FontStyle.Bold);
-        var rect = new Rectangle(0, (int)(s * 0.62f), s, (int)(s * 0.32f));
-        TextRenderer.DrawText(g, "S/", f, rect, Color.White,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-    }
-}
-

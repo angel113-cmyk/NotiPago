@@ -19,7 +19,22 @@
       "paquetes": [ "pe.com.interbank.mobilebanking", "com.bbva.nxt_peru", "com.scotiabank.mobile.pe", "pe.com.bcp.mobile" ],
       "tipo": "recibido",
       "provisional": true,
-      "patron": "(?:Recibiste|Te\\s+(?:enviaron|plinearon))\\s+(?<monto>S/\\s*[\\d.,]+)\\s+de\\s+(?<nombre>.+?)(?:\\.|$)"
+      "patron": "(?:Recibiste|Te\\s+(?:enviaron|plinearon))\\s+(?<monto>S/\\s*[\\d.,]+)\\s+de\\s+(?<nombre>.+?)(?=\\s+v[ií]a\\s+Plin|\\s+a\\s+las\\b|\\s*\\.(?=\\s+(?-i:\\p{Lu})|\\s*$)|$)"
+    },
+    {
+      "app": "Plin",
+      "paquetes": [ "pe.com.interbank.mobilebanking", "com.bbva.nxt_peru", "com.scotiabank.mobile.pe", "pe.com.bcp.mobile" ],
+      "tipo": "recibido",
+      "provisional": true,
+      "buscarEn": "ambos",
+      "patron": "Recibiste\\s+un\\s+Plin.*?(?<monto>S/\\s*[\\d.,]+)\\s+de\\s+(?<nombre>.+?)(?=\\s+v[ií]a\\s+Plin|\\s+a\\s+las\\b|\\s*\\.(?=\\s+(?-i:\\p{Lu})|\\s*$)|$)"
+    },
+    {
+      "app": "Plin",
+      "paquetes": [ "pe.com.interbank.mobilebanking", "com.bbva.nxt_peru", "com.scotiabank.mobile.pe", "pe.com.bcp.mobile" ],
+      "tipo": "enviado",
+      "provisional": true,
+      "patron": "Enviaste\\s+(?<monto>S/\\s*[\\d.,]+)\\s+a\\s+(?<nombre>.+?)(?=\\s+v[ií]a\\s+Plin|\\s+a\\s+las\\b|\\s*\\.(?=\\s+(?-i:\\p{Lu})|\\s*$)|$)"
     },
     {
       "app": "Plin",

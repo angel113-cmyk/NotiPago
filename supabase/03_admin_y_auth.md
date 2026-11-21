@@ -1,21 +1,25 @@
-# HT-03: usuario admin y registro cerrado (pasos manuales)
+# HT-03: usuario admin y registro (configuracion de Auth)
 
-Se hace en el panel de Supabase, no hay script. Nunca uses ni compartas la `service_role`.
+Decision del dueno: la cuenta se crea **desde la app Android** ("Crear cuenta") y el registro queda **abierto**.
+Nunca uses ni compartas la `service_role`.
 
-## 1. Crear el admin
-1. Panel del proyecto -> **Authentication -> Users -> Add user -> Create new user**.
-2. Correo: el de la tienda. Contrasena: larga y unica (guardala en un gestor).
-3. Marca **Auto Confirm User** para que no pida confirmar el correo.
+## 1. Configurar Supabase (una sola vez)
+1. **Authentication -> Sign In / Providers**:
+   - Deja **Allow new users to sign up** ENCENDIDO.
+   - Deja habilitado solo el proveedor **Email**. Desactiva anonymous, phone, etc.
+2. En el proveedor **Email**, apaga **Confirm email** (si no, la app no podra iniciar sesion
+   hasta que se abra un correo de confirmacion).
+3. Guarda.
 
-## 2. Desactivar el registro publico
-1. **Authentication -> Sign In / Providers** (o *Configuration -> Sign In / Providers*).
-2. Apaga **Allow new users to sign up**.
-3. Deja habilitado solo el proveedor **Email**. Desactiva los demas (anonymous, phone, etc.).
-4. Guarda.
+## 2. Crear la cuenta
+- Desde la app Android (pantalla de login -> "Crear cuenta"), o
+- a mano en **Authentication -> Users -> Add user -> Create new user** (marca *Auto Confirm User*).
 
-## 3. Comprobar
-- Un registro nuevo desde la API devuelve error "Signups not allowed".
-- El login con el admin devuelve un `access_token`.
+## 3. Reglas importantes
+- **La PC y el celular deben usar la MISMA cuenta.** Con RLS cada cuenta ve solo sus propios pagos:
+  si creas dos cuentas, los pagos del celular no aparecen en la PC.
+- Como el registro esta abierto, cualquiera con el APK podria crear cuentas (no veria tus datos, pero
+  habria cuentas basura). Si mas adelante quieres cerrarlo, apaga *Allow new users to sign up*.
 
 ## 4. Claves que usan las apps
 *Project Settings -> API Keys*: solo la **publishable (anon)** va en `appsettings.json`.

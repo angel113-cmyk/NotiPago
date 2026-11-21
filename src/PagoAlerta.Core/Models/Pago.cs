@@ -31,8 +31,10 @@ public class Pago : BaseModel
     [Column("texto_original")] public string? TextoOriginal { get; set; }
     [Column("paquete")] public string? Paquete { get; set; }
     [Column("hash")] public string Hash { get; set; } = "";
+    [Column("es_prueba")] public bool EsPrueba { get; set; }
 
     [Column("created_at", ignoreOnInsert: true, ignoreOnUpdate: true)]
     public DateTime CreatedAt { get; set; }
 }
+
 

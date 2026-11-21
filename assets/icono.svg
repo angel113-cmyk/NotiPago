@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>PagoAlerta</title>
+  <rect width="1024" height="1024" rx="224" fill="#1F4FE0"/>
+  <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="24" stroke-linejoin="round">
+    <circle cx="500" cy="252" r="30" stroke="none"/>
+    <path d="M500 282C408 282 338 352 338 448L338 530C338 590 318 630 278 670L278 700L722 700L722 670C682 630 662 590 662 530L662 448C662 352 592 282 500 282Z"/>
+    <path d="M438 740A62 62 0 0 0 562 740Z" stroke="none"/>
+  </g>
+  <circle cx="738" cy="296" r="122" fill="#19C6E0" stroke="#1F4FE0" stroke-width="30"/>
+  <path d="M682 298L722 338L796 258" fill="none" stroke="#0B2A8F" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

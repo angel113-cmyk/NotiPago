@@ -16,6 +16,14 @@ public static class Reintentos
         }
     }
 
+    /// <summary>JWT vencido / 401: hay que volver a iniciar sesion.</summary>
+    public static bool EsSesionVencida(Exception ex)
+    {
+        var m = ex.ToString();
+        return m.Contains("JWT", StringComparison.OrdinalIgnoreCase)
+            || m.Contains("401") || m.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static bool EsTransitorio(Exception ex) => ex switch
     {
         HttpRequestException => true,

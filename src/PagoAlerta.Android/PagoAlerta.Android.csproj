@@ -1,20 +1,27 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="Android.local.props" Condition="Exists('Android.local.props')" />
   <ItemGroup>
     <ProjectReference Include="..\PagoAlerta.Core\PagoAlerta.Core.csproj" />
   </ItemGroup>
   <PropertyGroup>
     <TargetFramework>net11.0-android</TargetFramework>
+    <!-- Android 7.0 (API 24) en adelante -->
     <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
     <OutputType>Exe</OutputType>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PagoAlerta.Movil</RootNamespace>
+    <AssemblyName>PagoAlerta.Android</AssemblyName>
     <ApplicationId>com.pagoalerta.app</ApplicationId>
-    <ApplicationVersion>1</ApplicationVersion>
-    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-    <!--
-      Enables trim analyzers and full trimming during Release mode.
-      To learn more, see: https://learn.microsoft.com/dotnet/core/deploying/trimming/trimming-options#trimming-granularity
-    -->
-    <TrimMode>full</TrimMode>
+    <ApplicationVersion>4</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
+    <!-- El cliente Supabase usa reflexion (JSON): no recortar el codigo en Release. -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <AndroidLinkMode>None</AndroidLinkMode>
+  </PropertyGroup>
+  <!-- APK de Release: un solo archivo con celulares ARM de 64 y 32 bits y emuladores x86_64 (BlueStacks). -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' And '$(RuntimeIdentifier)' == ''">
+    <RuntimeIdentifiers>android-arm64;android-arm;android-x64</RuntimeIdentifiers>
   </PropertyGroup>
 </Project>
+

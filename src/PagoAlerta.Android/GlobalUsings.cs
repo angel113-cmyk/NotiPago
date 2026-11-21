@@ -1,0 +1,13 @@
+global using Android.App;
+global using Android.Content;
+global using Android.Content.PM;
+global using Android.Net;
+global using Android.OS;
+global using Android.Runtime;
+global using Android.Views;
+global using Android.Views.InputMethods;
+global using Android.Widget;
+global using Orientation = Android.Widget.Orientation;
+global using Uri = Android.Net.Uri;
+global using Android.Text;
+global using Android.Animation;

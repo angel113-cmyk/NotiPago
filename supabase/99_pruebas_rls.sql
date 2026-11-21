@@ -25,6 +25,8 @@ end $$;
 
 rollback;
 
--- Comprobar que no existen politicas de UPDATE/DELETE (debe devolver 0 filas):
+-- Comprobar politicas que NO sean de lectura/insercion.
+-- Resultado esperado: 0 filas antes de ejecutar 04_es_prueba.sql, o SOLO
+-- 'pagos_delete_pruebas' (DELETE) despues. Cualquier UPDATE o ALL seria un error.
 select policyname, cmd from pg_policies
 where schemaname = 'public' and tablename = 'pagos' and cmd in ('UPDATE', 'DELETE', 'ALL');

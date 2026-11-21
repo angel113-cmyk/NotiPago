@@ -16,7 +16,13 @@ public class SupabaseSettings
                 $"No se encontro '{Path.GetFileName(rutaJson)}'. Copia appsettings.example.json como appsettings.json y completa la URL y la clave anon.",
                 rutaJson);
 
-        using var doc = JsonDocument.Parse(File.ReadAllText(rutaJson));
+        return DesdeJson(File.ReadAllText(rutaJson));
+    }
+
+    /// <summary>Lee la configuracion desde un JSON en memoria (Android la trae como asset).</summary>
+    public static SupabaseSettings DesdeJson(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
         var sec = doc.RootElement.GetProperty("Supabase");
         var s = new SupabaseSettings
         {
