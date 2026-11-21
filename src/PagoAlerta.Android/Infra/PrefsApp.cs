@@ -33,6 +33,13 @@ public class PrefsApp
         set => _p.Edit()!.PutStringSet("paquetes_extra", new List<string>(value))!.Apply();
     }
 
+    /// <summary>Notificacion con sonido y vibracion al detectar un pago. Encendida por defecto.</summary>
+    public bool AvisoPago
+    {
+        get => _p.GetBoolean("aviso_pago", true);
+        set => _p.Edit()!.PutBoolean("aviso_pago", value)!.Apply();
+    }
+
     public long UltimoEnvioMs
     {
         get => _p.GetLong("ultimo_envio", 0);

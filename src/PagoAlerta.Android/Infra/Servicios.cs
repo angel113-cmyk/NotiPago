@@ -158,11 +158,12 @@ public static class Servicios
         return r;
     }
 
-    /// <summary>Guarda el pago en la cola local y lo intenta enviar enseguida. Nunca se pierde.</summary>
-    public static async Task EncolarYEnviarAsync(Pago pago)
+    /// <summary>Guarda el pago en la cola local (nunca se pierde). False si ya estaba en la cola (duplicado).</summary>
+    public static bool EncolarPago(Pago pago)
     {
-        if (Cola.Encolar(pago)) Registro.Info($"Pago en cola (hash {pago.Hash[..8]})");
-        await ProcesarColaAsync().ConfigureAwait(false);
+        var nuevo = Cola.Encolar(pago);
+        if (nuevo) Registro.Info($"Pago en cola (hash {pago.Hash[..8]})");
+        return nuevo;
     }
 
     /// <summary>HU-20 / HT-22: la prueba recorre el MISMO camino que un pago real (parser -> hash -> cola -> envio).</summary>
@@ -173,6 +174,7 @@ public static class Servicios
             return new EnvioInfo(ResultadoEnvio.Error, "El parser no reconoce el mensaje de prueba (revisa parser-rules.json).");
 
         Cola.Encolar(pago);
+        AvisoPago.Notificar(Contexto, pago);   // tambien avisa en el celular, para comprobar que el aviso funciona
         var r = await Cola.ProcesarAsync(ignorarEspera: true).ConfigureAwait(false);
 
         if (r.Pendientes == 0 || r.UltimaSalida is SalidaEnvio.Enviado or SalidaEnvio.YaExistia)

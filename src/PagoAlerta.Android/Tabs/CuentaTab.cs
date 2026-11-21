@@ -1,5 +1,6 @@
 using Android.Graphics;
 using PagoAlerta.Core.Logging;
+using PagoAlerta.Core.Services;
 using PagoAlerta.Movil.Infra;
 using PagoAlerta.Movil.Ui;
 
@@ -58,6 +59,37 @@ public class CuentaTab : ITab
         fila.AddView(Vistas.Pildora(c, "ADMIN", Colores.Acento, Colores.PrimarioOscuro, 12));
         perfil.AddView(fila);
         col.AddView(perfil, Vistas.Margen(c, 0, 16));
+
+        // ---- Avisos de pago ----
+        var avisos = Vistas.Tarjeta(c, padDp: 20);
+        var filaAviso = new LinearLayout(c) { Orientation = Orientation.Horizontal };
+        filaAviso.SetGravity(GravityFlags.CenterVertical);
+        var txAviso = new LinearLayout(c) { Orientation = Orientation.Vertical };
+        txAviso.AddView(Vistas.Etiqueta(c, "Avisar cuando llegue un pago", 18, Colores.Texto, negrita: true));
+        var subAviso = Vistas.Etiqueta(c, "Notificación con sonido y vibración al detectar un pago.", 13, Colores.TextoSecundario);
+        subAviso.SetLineSpacing(0, 1.12f);
+        txAviso.AddView(subAviso, Vistas.Margen(c, 3));
+        filaAviso.AddView(txAviso, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1f));
+        var swAviso = Vistas.Interruptor(c, Servicios.Prefs.AvisoPago, Colores.Primario);
+        swAviso.ScaleX = swAviso.ScaleY = 1.15f;
+        swAviso.CheckedChange += (_, e) =>
+        {
+            Servicios.Prefs.AvisoPago = e.IsChecked;
+            Registro.Info($"Aviso de pago {(e.IsChecked ? "activado" : "desactivado")}");
+        };
+        filaAviso.AddView(swAviso);
+        avisos.AddView(filaAviso);
+
+        var probar = Vistas.Etiqueta(c, "Probar aviso", 15, Colores.Primario, negrita: true);
+        probar.SetPadding(0, Vistas.Px(c, 14), Vistas.Px(c, 12), 0);
+        probar.Click += (_, _) =>
+        {
+            if (!Servicios.Prefs.AvisoPago) { _a.Mensaje("Activa el aviso para probarlo", error: true); return; }
+            AvisoPago.Notificar(_a, PagoFactory.CrearPrueba("Yape"));
+            _a.Mensaje("Aviso de prueba enviado");
+        };
+        avisos.AddView(probar);
+        col.AddView(avisos, Vistas.Margen(c, 0, 16));
 
         // ---- Apps a monitorear ----
         var apps = Vistas.Tarjeta(c, padDp: 20);

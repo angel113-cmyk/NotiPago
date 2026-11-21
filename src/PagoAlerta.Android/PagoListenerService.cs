@@ -95,8 +95,12 @@ public class PagoListenerService : NotificationListenerService
             var pago = PagoFactory.DesdeDetectado(detectado);
             if (Servicios.YaEnviadoRecientemente(pago.Hash)) return;           // Android repitio la notificacion (HU-18)
 
-            // HU-14: primero a la cola local (no se pierde nada), luego se intenta enviar.
-            await Servicios.EncolarYEnviarAsync(pago).ConfigureAwait(false);
+            // HU-14: primero a la cola local (no se pierde nada).
+            if (!Servicios.EncolarPago(pago)) return;               // ya estaba en la cola: no se avisa dos veces
+
+            // Aviso en el celular (sonido + vibracion), sin esperar a la red; luego se intenta enviar.
+            AvisoPago.Notificar(Servicios.Contexto, pago);
+            await Servicios.ProcesarColaAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
