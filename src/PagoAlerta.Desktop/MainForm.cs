@@ -1,5 +1,7 @@
 using System.Media;
 using PagoAlerta.Core;
+using PagoAlerta.Core.Exportacion;
+using PagoAlerta.Core.Logging;
 using PagoAlerta.Core.Models;
 using PagoAlerta.Core.Services;
 using PagoAlerta.Core.Time;
@@ -28,7 +30,7 @@ public class MainForm : Form
     private readonly ComboBox _cmbPeriodo = new(), _cmbApp = new();
     private readonly DateTimePicker _dtpDesde = new(), _dtpHasta = new();
     private readonly TextBox _txtBuscar = new();
-    private readonly Button _btnLimpiar = new(), _btnEnviarPrueba = new(), _btnBorrarPruebas = new();
+    private readonly Button _btnLimpiar = new(), _btnEnviarPrueba = new(), _btnBorrarPruebas = new(), _btnExportar = new();
     private readonly CheckBox _chkPruebas = new();
     private readonly Label _lblEstado = new(), _lblAviso = new();
 
@@ -138,6 +140,12 @@ public class MainForm : Form
         Configurar(_btnLimpiar, "Limpiar", 90);
         _btnLimpiar.Click += async (_, _) => await LimpiarFiltrosAsync();
 
+        Configurar(_btnExportar, "Exportar", 100);
+        _btnExportar.BackColor = Tema.Primario;
+        _btnExportar.ForeColor = Color.White;
+        _btnExportar.FlatAppearance.BorderColor = Tema.Primario;
+        _btnExportar.Click += async (_, _) => await ExportarAsync();
+
         _chkPruebas.Text = "Incluir pruebas";
         _chkPruebas.AutoSize = true;
         _chkPruebas.ForeColor = Tema.TextoSecundario;
@@ -152,7 +160,7 @@ public class MainForm : Form
         _lblEstado.Margin = new Padding(18, 8, 0, 0);
         ActualizarEstadoRealtime(false);
 
-        fila1.Controls.AddRange(new Control[] { _cmbPeriodo, _dtpDesde, _dtpHasta, _cmbApp, _txtBuscar, _btnLimpiar });
+        fila1.Controls.AddRange(new Control[] { _cmbPeriodo, _dtpDesde, _dtpHasta, _cmbApp, _txtBuscar, _btnLimpiar, _btnExportar });
         fila2.Controls.AddRange(new Control[] { _chkPruebas, _btnEnviarPrueba, _btnBorrarPruebas, _lblEstado });
         filtros.Controls.Add(fila2);
         filtros.Controls.Add(fila1);
@@ -393,6 +401,64 @@ public class MainForm : Form
         finally { _btnEnviarPrueba.Enabled = true; }
     }
 
+    /// <summary>HU-07: exporta a Excel (.xlsx) o CSV respetando los filtros activos. Las pruebas no se exportan.</summary>
+    private async Task ExportarAsync()
+    {
+        using var dlg = new SaveFileDialog
+        {
+            Title = "Exportar pagos",
+            Filter = "Excel (*.xlsx)|*.xlsx|CSV (*.csv)|*.csv",
+            FileName = $"pagos_{ZonaLima.AhoraLima:yyyyMMdd}",
+            AddExtension = true,
+            OverwritePrompt = true
+        };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+        _btnExportar.Enabled = false;
+        var textoOriginal = _btnExportar.Text;
+        _btnExportar.Text = "Exportando…";
+        try
+        {
+            var f = FiltroActual();
+            f.IncluirPruebas = false;
+            f.Limite = 1000;
+            var todos = new List<Pago>();
+            for (f.Desplazamiento = 0; ; f.Desplazamiento += f.Limite)
+            {
+                var pagina = await _servicio.ListarPaginaAsync(f);
+                todos.AddRange(pagina.Items);
+                if (!pagina.HayMas) break;
+            }
+
+            var xlsx = dlg.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase);
+            await Task.Run(() =>
+            {
+                using var fs = File.Create(dlg.FileName);
+                if (xlsx) Exportadores.EscribirXlsx(todos, fs); else Exportadores.EscribirCsv(todos, fs);
+            });
+
+            Registro.Info($"Exportados {todos.Count} pagos ({(xlsx ? "xlsx" : "csv")})");
+            MessageBox.Show(this, $"Se exportaron {todos.Count} pagos.", AppInfo.Nombre,
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (IOException ex)
+        {
+            Registro.Error("No se pudo guardar el archivo exportado", ex);
+            MessageBox.Show(this, "No se pudo guardar el archivo. Si está abierto en Excel, ciérralo e inténtalo de nuevo.",
+                AppInfo.Nombre, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        catch (Exception ex)
+        {
+            Registro.Error("Fallo al exportar", ex);
+            MostrarAviso($"No se pudo exportar: {Motivo(ex)}.");
+        }
+        finally
+        {
+            _btnExportar.Text = textoOriginal;
+            _btnExportar.Enabled = true;
+        }
+    }
+
     private async Task BorrarPruebasAsync()
     {
         var r = MessageBox.Show(this, "¿Borrar todos los pagos de prueba? Los pagos reales no se tocan.",
@@ -437,6 +503,7 @@ public class MainForm : Form
 
     private async Task ManejarErrorAsync(Exception ex)
     {
+        Registro.Error("Error al cargar pagos", ex);
         if (EsSesionVencida(ex) || !_servicio.TieneSesion)
         {
             MessageBox.Show(this, "Tu sesión venció. Inicia sesión de nuevo.", AppInfo.Nombre,

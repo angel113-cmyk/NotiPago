@@ -14,7 +14,8 @@
 
   <PropertyGroup>
     <AssemblyName>PagoAlerta</AssemblyName>
-    <ApplicationIcon />
+    <ApplicationIcon>pagoalerta.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>es</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,3 +26,5 @@
   </ItemGroup>
 
 </Project>
+
+
