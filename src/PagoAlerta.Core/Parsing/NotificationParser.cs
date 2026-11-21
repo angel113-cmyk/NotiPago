@@ -22,6 +22,13 @@ public class NotificationParser
         }
     }
 
+    /// <summary>Apps conocidas y sus paquetes, tomados de las reglas (fuente unica para las pantallas).</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> PaquetesPorApp =>
+        _reglas.GroupBy(r => r.Regla.App)
+               .ToDictionary(g => g.Key,
+                   g => (IReadOnlyList<string>)g.SelectMany(r => r.Regla.Paquetes)
+                        .Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+
     public static NotificationParser DesdeJson(string json)
     {
         var set = JsonSerializer.Deserialize<ConjuntoReglas>(json, new JsonSerializerOptions { ReadCommentHandling = JsonCommentHandling.Skip })
