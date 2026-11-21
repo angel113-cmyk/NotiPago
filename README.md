@@ -18,6 +18,7 @@ Celular Android  ──►  Supabase (PostgreSQL + Auth + Realtime)  ──►  
 | `supabase/` | Scripts SQL y guía de Auth |
 | `installer/` | Scripts del instalador de Windows y del APK firmado |
 | `docs/` | Lista de pruebas manuales |
+| `assets/` | Ícono de la app (`icono.svg`). Para regenerar los íconos de Windows y Android: `powershell -ExecutionPolicy Bypass -File installer\crear-iconos.ps1` |
 
 ## 1. Configurar Supabase (una sola vez)
 
