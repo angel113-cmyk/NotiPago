@@ -44,3 +44,18 @@ notificaciones activo en el celular y la app de escritorio abierta.
 | D1 | Ejecutar `supabase/99_pruebas_rls.sql` | `anon` no puede leer ni insertar |
 | D2 | Iniciar sesión con otra cuenta | No ve pagos de la primera cuenta |
 | D3 | Revisar `git log -p` y el APK/instalador | No hay `service_role` ni contraseñas |
+
+## E. Diseño (sprint 5)
+
+| # | Caso | Resultado esperado |
+|---|---|---|
+| E1 | Android: abrir la app con sesión guardada | Entra directo a **Inicio** (resumen del día y movimientos recientes) |
+| E2 | Android: cambiar entre **Inicio · Estado · Cuenta** | Transición suave; la pestaña activa se marca en azul |
+| E3 | Android: **Inicio** con un pago nuevo | El total cuenta hasta el nuevo valor y aparece el aviso "Nuevo movimiento" |
+| E4 | Android: **Ver todos** | Lista completa con "Cargar más"; el interruptor oculta/muestra las pruebas |
+| E5 | Android: **Cuenta → interruptores de apps** | Desmarcar una app deja de leer sus notificaciones |
+| E6 | Android: **Permisos y batería** | Los 4 pasos cambian de PENDIENTE a LISTO al activar cada permiso |
+| E7 | Android: login con datos incorrectos | El formulario se sacude y muestra el error |
+| E8 | PC: llega un pago en vivo | Fila nueva con fundido y etiqueta **NUEVO**; el punto "En vivo" pulsa |
+| E9 | PC: filtros en chips, buscador y "Ver pruebas" | Igual que antes; "⋯ Más" contiene Limpiar, Enviar prueba, Borrar pruebas y Ajustes |
+| E10 | PC: seleccionar una fila (clic o flechas ↑↓) | El panel de detalle de la derecha cambia con un fundido |

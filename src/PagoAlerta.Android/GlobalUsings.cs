@@ -10,3 +10,4 @@ global using Android.Widget;
 global using Orientation = Android.Widget.Orientation;
 global using Uri = Android.Net.Uri;
 global using Android.Text;
+global using Android.Animation;

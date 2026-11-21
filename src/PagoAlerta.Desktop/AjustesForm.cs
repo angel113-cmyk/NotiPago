@@ -19,7 +19,7 @@ public class AjustesForm : Form
         StartPosition = FormStartPosition.CenterParent;
         ClientSize = new Size(440, 330);
 
-        var tarjeta = new PanelRedondeado { Sombra = true, Bounds = new Rectangle(24, 24, 392, 150) };
+        var tarjeta = new PanelRedondeado { Sombra = true, BackColor = Color.White, Bounds = new Rectangle(24, 24, 392, 150) };
         tarjeta.Controls.Add(new Label
         {
             Text = "Sesión iniciada como", ForeColor = Tema.TextoSecundario, Font = Tema.Fuente(9f),
@@ -38,7 +38,7 @@ public class AjustesForm : Form
         sonido.CheckedChanged += (_, _) => { prefs.Sonido = sonido.Checked; prefs.Guardar(); };
         tarjeta.Controls.Add(sonido);
 
-        var salir = new BotonPrimario { Text = "Cerrar sesión", Bounds = new Rectangle(24, 200, 392, 48) };
+        var salir = new BotonPildora("Cerrar sesión", BotonPildora.Estilo.Contorno, alto: 48) { Bounds = new Rectangle(24, 200, 392, 48) };
         salir.Click += (_, _) =>
         {
             CerrarSesionSolicitado = true;

@@ -131,7 +131,7 @@ public class MonitorService : Service
 
     private Notification Construir(int pendientes)
     {
-        var abrir = PendingIntent.GetActivity(this, 0, new Intent(this, typeof(EstadoActivity)),
+        var abrir = PendingIntent.GetActivity(this, 0, new Intent(this, typeof(PrincipalActivity)),
             PendingIntentFlags.Immutable | PendingIntentFlags.UpdateCurrent);
 
         var b = Build.VERSION.SdkInt >= BuildVersionCodes.O
