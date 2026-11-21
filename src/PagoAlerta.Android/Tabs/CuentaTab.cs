@@ -85,7 +85,7 @@ public class CuentaTab : ITab
         probar.Click += (_, _) =>
         {
             if (!Servicios.Prefs.AvisoPago) { _a.Mensaje("Activa el aviso para probarlo", error: true); return; }
-            AvisoPago.Notificar(_a, PagoFactory.CrearPrueba("Yape"));
+            AvisoPago.Notificar(_a, PagoFactory.CrearPruebaPorParser(Servicios.Parser) ?? PagoFactory.CrearPrueba("Yape"));
             _a.Mensaje("Aviso de prueba enviado");
         };
         avisos.AddView(probar);

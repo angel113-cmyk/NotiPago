@@ -91,11 +91,12 @@ public class EstadoTab : ITab
         var t3 = Vistas.Tarjeta(c, padDp: 20);
         t3.AddView(Vistas.Etiqueta(c, "Mensaje de prueba", 20, Colores.Texto, negrita: true));
         var desc = Vistas.Etiqueta(c,
-            "Envía un pago simulado de S/ 1.00 por el mismo camino que uno real. Aparecerá en la PC con la etiqueta PRUEBA.",
+            "Elige una app (Yape, Plin o BBVA) y envía un pago simulado de S/ 1.00 con su aspecto real. Aparecerá en la PC con la etiqueta PRUEBA.",
             14, Colores.TextoSecundario);
         desc.SetLineSpacing(0, 1.15f);
         t3.AddView(desc, Vistas.Margen(c, 6, 16));
-        _btnPrueba = Vistas.Boton(c, "Enviar mensaje de prueba", EstiloBoton.Primario, async () => await ProbarAsync());
+        _btnPrueba = Vistas.Boton(c, "Enviar mensaje de prueba", EstiloBoton.Primario,
+            () => ElegirAppPrueba.Mostrar(_a, async app => await ProbarAsync(app)));
         ConIcono(_btnPrueba, Resource.Drawable.ic_send, Color.White);
         t3.AddView(_btnPrueba);
         _resultado = Vistas.Etiqueta(c, "", 14, Colores.TextoSecundario);
@@ -256,14 +257,14 @@ public class EstadoTab : ITab
         Refrescar();
     }
 
-    private async Task ProbarAsync()
+    private async Task ProbarAsync(string? app)
     {
         _btnPrueba.Enabled = false;
         _resultado.Visibility = ViewStates.Visible;
         _resultado.SetTextColor(Colores.TextoSecundario);
         _resultado.Text = "Enviando…";
 
-        var r = await Servicios.EnviarPruebaAsync();
+        var r = await Servicios.EnviarPruebaAsync(app);
         _btnPrueba.Enabled = true;
 
         if (r.Ok)

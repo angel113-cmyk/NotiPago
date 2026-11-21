@@ -37,14 +37,29 @@ public static class PagoFactory
     /// HT-22: pago de prueba que recorre el MISMO camino que uno real: notificacion simulada -> parser -> hash.
     /// Devuelve null si el parser no reconoce el texto simulado (las reglas estan mal configuradas).
     /// </summary>
-    public static Pago? CrearPruebaPorParser(NotificationParser parser, DateTime? ahoraUtc = null)
+    public static Pago? CrearPruebaPorParser(NotificationParser parser, DateTime? ahoraUtc) =>
+        CrearPruebaPorParser(parser, null, ahoraUtc);
+
+    /// <summary>Apps que se pueden simular en el mensaje de prueba.</summary>
+    public static readonly string[] AppsDePrueba = { "Yape", "Plin", "BBVA" };
+
+    /// <summary>
+    /// Notificacion simulada con el aspecto de la de cada app (paquete, titulo y texto), para que la prueba se vea
+    /// como un pago real de Yape, de Plin (dentro de la app de BBVA) o un abono de BBVA.
+    /// </summary>
+    public static (string Paquete, string Titulo, string Texto) NotificacionDePrueba(string app) => app switch
     {
-        var ahora = ahoraUtc ?? DateTime.UtcNow;
-        var detectado = parser.Parse(
-            PaquetePrueba,
-            "Confirmación de pago",
-            $"{NombrePrueba} te envió un pago por S/1.00. El cód. de seguridad es:000",
-            ahora);
+        "Plin" => ("com.bbva.nxt_peru", "¡Recibiste un Plin!", $"Recibiste S/ 1.00 de {NombrePrueba} vía Plin"),
+        "BBVA" => ("com.bbva.nxt_peru", "BBVA", "Abono a tu cuenta *0000 de S/ 1.00"),
+        _ => (PaquetePrueba, "Confirmación de pago", $"{NombrePrueba} te envió un pago por S/1.00. El cód. de seguridad es:000")
+    };
+
+    /// <param name="app">"Yape", "Plin" o "BBVA". Si es null, se elige una al azar.</param>
+    public static Pago? CrearPruebaPorParser(NotificationParser parser, string? app = null, DateTime? ahoraUtc = null)
+    {
+        app ??= AppsDePrueba[Random.Shared.Next(AppsDePrueba.Length)];
+        var (paquete, titulo, texto) = NotificacionDePrueba(app);
+        var detectado = parser.Parse(paquete, titulo, texto, ahoraUtc ?? DateTime.UtcNow);
         return detectado is null ? null : DesdeDetectado(detectado, esPrueba: true, nonce: Guid.NewGuid().ToString("N"));
     }
 

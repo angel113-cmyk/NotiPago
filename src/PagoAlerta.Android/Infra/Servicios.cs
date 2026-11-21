@@ -167,9 +167,10 @@ public static class Servicios
     }
 
     /// <summary>HU-20 / HT-22: la prueba recorre el MISMO camino que un pago real (parser -> hash -> cola -> envio).</summary>
-    public static async Task<EnvioInfo> EnviarPruebaAsync()
+    /// <param name="app">"Yape", "Plin" o "BBVA"; null = al azar.</param>
+    public static async Task<EnvioInfo> EnviarPruebaAsync(string? app = null)
     {
-        var pago = PagoFactory.CrearPruebaPorParser(Parser);
+        var pago = PagoFactory.CrearPruebaPorParser(Parser, app);
         if (pago is null)
             return new EnvioInfo(ResultadoEnvio.Error, "El parser no reconoce el mensaje de prueba (revisa parser-rules.json).");
 

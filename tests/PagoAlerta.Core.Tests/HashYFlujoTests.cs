@@ -51,7 +51,7 @@ public class HashYFlujoTests
     [Fact]
     public void Prueba_por_parser_pasa_por_el_mismo_camino_que_un_pago_real()
     {
-        var p = PagoFactory.CrearPruebaPorParser(Parser, T);
+        var p = PagoFactory.CrearPruebaPorParser(Parser, "Yape", T);
         Assert.NotNull(p);
         Assert.True(p!.EsPrueba);
         Assert.Equal("Prueba Sistema", p.Remitente);
@@ -64,7 +64,7 @@ public class HashYFlujoTests
     [Fact]
     public void Cada_prueba_por_parser_tiene_hash_distinto()
     {
-        Assert.NotEqual(PagoFactory.CrearPruebaPorParser(Parser, T)!.Hash, PagoFactory.CrearPruebaPorParser(Parser, T)!.Hash);
+        Assert.NotEqual(PagoFactory.CrearPruebaPorParser(Parser, "Yape", T)!.Hash, PagoFactory.CrearPruebaPorParser(Parser, "Yape", T)!.Hash);
     }
 
     [Fact]

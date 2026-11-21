@@ -3,6 +3,7 @@ using PagoAlerta.Core;
 using PagoAlerta.Core.Exportacion;
 using PagoAlerta.Core.Logging;
 using PagoAlerta.Core.Models;
+using PagoAlerta.Core.Parsing;
 using PagoAlerta.Core.Services;
 using PagoAlerta.Core.Time;
 using PagoAlerta.Desktop.Services;
@@ -22,6 +23,7 @@ public class MainForm : Form
     private readonly PagoService _servicio;
     private readonly PagoMonitor _monitor;
     private readonly Preferencias _prefs = Preferencias.Cargar();
+    private static readonly NotificationParser ParserPrueba = NotificationParser.PorDefecto();
 
     // Barra superior
     private readonly ChipEstado _chipEstado = new();
@@ -349,7 +351,10 @@ public class MainForm : Form
         _menuMas.Font = Tema.Fuente(10f);
         _menuMas.ShowImageMargin = false;
         _menuMas.Items.Add("Limpiar filtros", null, async (_, _) => await LimpiarFiltrosAsync());
-        _menuMas.Items.Add("Enviar prueba", null, async (_, _) => await EnviarPruebaAsync());
+        var prueba = new ToolStripMenuItem("Enviar prueba");
+        foreach (var (texto, app) in new (string, string?)[] { ("Como Yape", "Yape"), ("Como Plin", "Plin"), ("Como BBVA", "BBVA"), ("De una app al azar", null) })
+            prueba.DropDownItems.Add(texto, null, async (_, _) => await EnviarPruebaAsync(app));
+        _menuMas.Items.Add(prueba);
         _menuMas.Items.Add("Borrar pruebas", null, async (_, _) => await BorrarPruebasAsync());
         _menuMas.Items.Add(new ToolStripSeparator());
         _menuMas.Items.Add("Ajustes", null, async (_, _) => await AbrirAjustesAsync());
@@ -574,14 +579,16 @@ public class MainForm : Form
     // =====================================================================
     //  Acciones
     // =====================================================================
-    private async Task EnviarPruebaAsync()
+    /// <param name="app">"Yape", "Plin" o "BBVA"; null = al azar. Pasa por el mismo parser que un pago real.</param>
+    private async Task EnviarPruebaAsync(string? app = null)
     {
         if (_enviandoPrueba) return;
         _enviandoPrueba = true;
         try
         {
             if (!_chkPruebas.Checked) _chkPruebas.Checked = true;   // para que la prueba sea visible
-            await _servicio.InsertarAsync(PagoFactory.CrearPrueba("Prueba (PC)"));
+            var pago = PagoFactory.CrearPruebaPorParser(ParserPrueba, app) ?? PagoFactory.CrearPrueba("Prueba (PC)");
+            await _servicio.InsertarAsync(pago);
             OcultarAviso();
         }
         catch (Exception ex)

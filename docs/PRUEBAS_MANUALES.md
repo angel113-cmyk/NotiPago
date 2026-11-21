@@ -7,7 +7,8 @@ notificaciones activo en el celular y la app de escritorio abierta.
 
 | # | Caso | Pasos | Resultado esperado |
 |---|---|---|---|
-| A1 | Mensaje de prueba (HU-20) | Celular → Estado → **Enviar mensaje de prueba** | En la PC aparece en pocos segundos con etiqueta **PRUEBA** y no suma al "Total de hoy" |
+| A1 | Mensaje de prueba (HU-20) | Celular → Estado → **Enviar mensaje de prueba** → elegir **Yape**, **Plin**, **BBVA** o al azar | En la PC aparece en pocos segundos con la app elegida y etiqueta **PRUEBA**, y no suma al "Total de hoy" |
+| A1b | Prueba desde la PC | PC → **⋯ Más → Enviar prueba → Como Yape / Plin / BBVA** | La fila aparece con esa app y la etiqueta PRUEBA |
 | A2 | Prueba sin permiso | Desactiva "Acceso a notificaciones" y envía la prueba | Se envía y la app avisa que el permiso está desactivado |
 | A3 | Pago real | Recibe un pago real (Yape/Plin/BBVA) | Aparece en la PC con nombre, monto, app y hora de Lima; suma al total |
 | A4 | Notificación duplicada | Android repite/actualiza la misma notificación | Solo hay **una** fila en la tabla |

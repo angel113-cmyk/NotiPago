@@ -92,7 +92,8 @@ public class PermisosActivity : PantallaBase
         var c4 = Vistas.Tarjeta(this, padDp: 18);
         var b4 = new LinearLayout(this) { Orientation = Orientation.Vertical };
         b4.AddView(Descripcion("Envía un pago de prueba y comprueba que aparece en la PC con la etiqueta PRUEBA."));
-        _btnPrueba = Vistas.Boton(this, "Enviar mensaje de prueba", EstiloBoton.Primario, async () => await ProbarAsync(), compacto: true);
+        _btnPrueba = Vistas.Boton(this, "Enviar mensaje de prueba", EstiloBoton.Primario,
+            () => ElegirAppPrueba.Mostrar(this, async app => await ProbarAsync(app)), compacto: true);
         b4.AddView(_btnPrueba, Vistas.Margen(this, 12, 0, 0, 0, ViewGroup.LayoutParams.WrapContent));
         _resultadoPrueba = Vistas.Etiqueta(this, "", 14, Colores.TextoSecundario);
         _resultadoPrueba.Visibility = ViewStates.Gone;
@@ -229,13 +230,13 @@ public class PermisosActivity : PantallaBase
     }
 
     // ---------------- Acciones ----------------
-    private async Task ProbarAsync()
+    private async Task ProbarAsync(string? app)
     {
         _btnPrueba.Enabled = false;
         _resultadoPrueba.Visibility = ViewStates.Visible;
         _resultadoPrueba.SetTextColor(Colores.TextoSecundario);
         _resultadoPrueba.Text = "Enviando…";
-        var r = await Servicios.EnviarPruebaAsync();
+        var r = await Servicios.EnviarPruebaAsync(app);
         _btnPrueba.Enabled = true;
         _resultadoPrueba.SetTextColor(r.Ok ? Colores.Verde : Colores.Error);
         _resultadoPrueba.Text = r.Ok ? "Prueba enviada. Revísala en la PC (etiqueta PRUEBA)." : r.Mensaje;

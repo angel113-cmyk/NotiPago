@@ -88,7 +88,7 @@ Resultado en `dist\`. La primera vez se crea la **keystore** en `%USERPROFILE%\P
 3. Abre **PagoAlerta** → **Crear cuenta** (o Ingresar).
 4. Entra en **Permisos y batería** y sigue los 3 pasos: *Acceso a notificaciones*, *Ahorro de batería* y los ajustes
    de tu marca. En Android 13+ si el interruptor aparece bloqueado: Info. de la app → ⋮ → *Permitir ajustes restringidos*.
-5. Toca **Enviar mensaje de prueba**: debe aparecer en la PC con la etiqueta PRUEBA.
+5. Toca **Enviar mensaje de prueba** y elige la app (**Yape**, **Plin**, **BBVA** o al azar): debe aparecer en la PC con esa app y la etiqueta PRUEBA. La prueba pasa por el mismo parser que un pago real, así que también sirve para comprobar las reglas de cada app.
 
 En BlueStacks arrastra el APK a la ventana (o `Ctrl+Shift+B`).
 
