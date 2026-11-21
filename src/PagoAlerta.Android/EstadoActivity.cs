@@ -1,4 +1,4 @@
-﻿using Android.Graphics;
+using Android.Graphics;
 using PagoAlerta.Core;
 using PagoAlerta.Core.Logging;
 using PagoAlerta.Core.Time;
@@ -59,7 +59,7 @@ public class EstadoActivity : PantallaBase
         t1.AddView(filaEstado, Vistas.Margen(this, 8, 8));
         t1.AddView(Vistas.Separador(this));
 
-        var (f1, v1) = Vistas.FilaDato(this, "Ãšltimo envÃ­o", "â€”"); _ultimoEnvio = v1; t1.AddView(f1);
+        var (f1, v1) = Vistas.FilaDato(this, "Último envío", "—"); _ultimoEnvio = v1; t1.AddView(f1);
         t1.AddView(Vistas.Separador(this));
         var (f2, v2) = Vistas.FilaDato(this, "Pagos pendientes de enviar", "0"); _pendientes = v2; t1.AddView(f2);
 
@@ -72,7 +72,7 @@ public class EstadoActivity : PantallaBase
         var t2 = Vistas.Tarjeta(this);
         t2.AddView(Vistas.Etiqueta(this, "Mensaje de prueba", 18, Colores.Texto, negrita: true));
         t2.AddView(Vistas.Etiqueta(this,
-            "EnvÃ­a un pago simulado de S/ 1.00 por el mismo camino que un pago real. Debe aparecer en la PC con la etiqueta PRUEBA.",
+            "Envía un pago simulado de S/ 1.00 por el mismo camino que un pago real. Debe aparecer en la PC con la etiqueta PRUEBA.",
             14, Colores.TextoSecundario), Vistas.Margen(this, 4, 12));
         _btnPrueba = Vistas.Boton(this, "Enviar mensaje de prueba", true, async () => await ProbarAsync());
         t2.AddView(_btnPrueba);
@@ -94,9 +94,9 @@ public class EstadoActivity : PantallaBase
         // Accesos
         c.AddView(Vistas.Boton(this, "Apps a monitorear", false,
             () => StartActivity(new Intent(this, typeof(AppsActivity)))), Vistas.Margen(this, 0, 10));
-        c.AddView(Vistas.Boton(this, "Permisos y baterÃ­a", false,
+        c.AddView(Vistas.Boton(this, "Permisos y batería", false,
             () => StartActivity(new Intent(this, typeof(PermisosActivity)))), Vistas.Margen(this, 0, 10));
-        c.AddView(Vistas.Boton(this, "Cerrar sesiÃ³n", false, async () => await CerrarSesionAsync()), Vistas.Margen(this));
+        c.AddView(Vistas.Boton(this, "Cerrar sesión", false, async () => await CerrarSesionAsync()), Vistas.Margen(this));
 
         _handler = new Handler(Looper.MainLooper!);
         _tick = new Java.Lang.Runnable(() => { Refrescar(); _handler?.PostDelayed(_tick, 3000); });
@@ -183,7 +183,7 @@ public class EstadoActivity : PantallaBase
         _puntoEstado.Background = punto;
 
         var ms = Servicios.Prefs.UltimoEnvioMs;
-        _ultimoEnvio.Text = ms == 0 ? "â€”" :
+        _ultimoEnvio.Text = ms == 0 ? "—" :
             $"{Formato.Fecha(DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime)} {Formato.Hora(DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime)}";
 
         var err = Servicios.Prefs.UltimoError;
@@ -203,7 +203,7 @@ public class EstadoActivity : PantallaBase
         _btnPrueba.Enabled = false;
         _resultadoPrueba.Visibility = ViewStates.Visible;
         _resultadoPrueba.SetTextColor(Colores.TextoSecundario);
-        _resultadoPrueba.Text = "Enviandoâ€¦";
+        _resultadoPrueba.Text = "Enviando…";
 
         var r = await Servicios.EnviarPruebaAsync();
         _btnPrueba.Enabled = true;
@@ -212,9 +212,9 @@ public class EstadoActivity : PantallaBase
         {
             var aviso = Servicios.ListenerHabilitado(this)
                 ? ""
-                : "\nOjo: el permiso de notificaciones estÃ¡ desactivado, asÃ­ que los pagos reales no se detectarÃ¡n.";
+                : "\nOjo: el permiso de notificaciones está desactivado, así que los pagos reales no se detectarán.";
             _resultadoPrueba.SetTextColor(Servicios.ListenerHabilitado(this) ? Colores.Verde : Colores.Ambar);
-            _resultadoPrueba.Text = "Prueba enviada. RevÃ­sala en la PC (etiqueta PRUEBA)." + aviso;
+            _resultadoPrueba.Text = "Prueba enviada. Revísala en la PC (etiqueta PRUEBA)." + aviso;
         }
         else
         {

@@ -1,4 +1,4 @@
-﻿using Android.Graphics;
+using Android.Graphics;
 using PagoAlerta.Core;
 using PagoAlerta.Core.Services;
 using PagoAlerta.Movil.Infra;
@@ -29,7 +29,7 @@ public class LoginActivity : Activity
         if (Servicios.ErrorConfiguracion is { } err) { Mostrar(err, true); return; }
 
         // Si ya hay una sesion guardada, entra directo.
-        Ocupado(true, "Restaurando sesiÃ³nâ€¦");
+        Ocupado(true, "Restaurando sesión…");
         var ok = await Servicios.AsegurarSesionAsync();
         Ocupado(false);
         if (ok) IrAEstado();
@@ -52,17 +52,17 @@ public class LoginActivity : Activity
         var titulo = Vistas.Etiqueta(this, AppInfo.Nombre, 28, Colores.Texto, negrita: true);
         titulo.Gravity = GravityFlags.Center;
         col.AddView(titulo, Vistas.Margen(this));
-        var sub = Vistas.Etiqueta(this, "Inicia sesiÃ³n o crea tu cuenta", 15, Colores.TextoSecundario);
+        var sub = Vistas.Etiqueta(this, "Inicia sesión o crea tu cuenta", 15, Colores.TextoSecundario);
         sub.Gravity = GravityFlags.Center;
         col.AddView(sub, Vistas.Margen(this, 2, 22));
 
         var tarjeta = Vistas.Tarjeta(this);
-        _correo = Vistas.Campo(this, "Correo electrÃ³nico");
-        _clave = Vistas.Campo(this, "ContraseÃ±a (mÃ­nimo 8 caracteres)", clave: true);
+        _correo = Vistas.Campo(this, "Correo electrónico");
+        _clave = Vistas.Campo(this, "Contraseña (mínimo 8 caracteres)", clave: true);
         tarjeta.AddView(_correo, Vistas.Margen(this, 0, 12));
         tarjeta.AddView(_clave, Vistas.Margen(this, 0, 8));
 
-        _recordar = new CheckBox(this) { Text = "Recordar sesiÃ³n", Checked = true };
+        _recordar = new CheckBox(this) { Text = "Recordar sesión", Checked = true };
         _recordar.SetTextColor(Colores.TextoSecundario);
         tarjeta.AddView(_recordar, Vistas.Margen(this, 0, 6));
 
@@ -103,8 +103,8 @@ public class LoginActivity : Activity
     {
         correo = _correo.Text?.Trim() ?? "";
         clave = _clave.Text ?? "";
-        if (correo.Length == 0 || clave.Length == 0) { Mostrar("Ingresa tu correo y contraseÃ±a.", true); return false; }
-        if (Servicios.Pago is null) { Mostrar(Servicios.ErrorConfiguracion ?? "ConfiguraciÃ³n no disponible.", true); return false; }
+        if (correo.Length == 0 || clave.Length == 0) { Mostrar("Ingresa tu correo y contraseña.", true); return false; }
+        if (Servicios.Pago is null) { Mostrar(Servicios.ErrorConfiguracion ?? "Configuración no disponible.", true); return false; }
         _mensaje.Visibility = ViewStates.Gone;
         return true;
     }
@@ -112,7 +112,7 @@ public class LoginActivity : Activity
     private async Task IngresarAsync()
     {
         if (!Validar(out var correo, out var clave)) return;
-        Ocupado(true, "Ingresandoâ€¦");
+        Ocupado(true, "Ingresando…");
         var r = await Servicios.Pago!.LoginAsync(correo, clave, _recordar.Checked);
         _clave.Text = "";
         Ocupado(false);
@@ -121,14 +121,14 @@ public class LoginActivity : Activity
         {
             case ResultadoLogin.Ok: IrAEstado(); break;
             case ResultadoLogin.SinConexion: Mostrar("No se pudo conectar. Revisa tu internet.", true); break;
-            default: Mostrar("Correo o contraseÃ±a incorrectos.", true); break;   // mensaje generico
+            default: Mostrar("Correo o contraseña incorrectos.", true); break;   // mensaje generico
         }
     }
 
     private async Task CrearAsync()
     {
         if (!Validar(out var correo, out var clave)) return;
-        Ocupado(true, "Creando cuentaâ€¦");
+        Ocupado(true, "Creando cuenta…");
         var r = await Servicios.Pago!.RegistrarAsync(correo, clave, _recordar.Checked);
         _clave.Text = "";
         Ocupado(false);
@@ -137,13 +137,13 @@ public class LoginActivity : Activity
         {
             case ResultadoRegistro.Ok: IrAEstado(); break;
             case ResultadoRegistro.RequiereConfirmacion:
-                Mostrar("Cuenta creada. Confirma tu correo y luego inicia sesiÃ³n.", false); break;
-            case ResultadoRegistro.CorreoInvalido: Mostrar("Escribe un correo vÃ¡lido.", true); break;
-            case ResultadoRegistro.ContrasenaDebil: Mostrar("La contraseÃ±a debe tener al menos 8 caracteres.", true); break;
+                Mostrar("Cuenta creada. Confirma tu correo y luego inicia sesión.", false); break;
+            case ResultadoRegistro.CorreoInvalido: Mostrar("Escribe un correo válido.", true); break;
+            case ResultadoRegistro.ContrasenaDebil: Mostrar("La contraseña debe tener al menos 8 caracteres.", true); break;
             case ResultadoRegistro.CorreoYaRegistrado: Mostrar("Ese correo ya tiene cuenta. Usa \"Ingresar\".", true); break;
-            case ResultadoRegistro.RegistroDeshabilitado: Mostrar("El registro estÃ¡ deshabilitado en Supabase.", true); break;
+            case ResultadoRegistro.RegistroDeshabilitado: Mostrar("El registro está deshabilitado en Supabase.", true); break;
             case ResultadoRegistro.SinConexion: Mostrar("No se pudo conectar. Revisa tu internet.", true); break;
-            default: Mostrar("No se pudo crear la cuenta. IntÃ©ntalo de nuevo.", true); break;
+            default: Mostrar("No se pudo crear la cuenta. Inténtalo de nuevo.", true); break;
         }
     }
 
