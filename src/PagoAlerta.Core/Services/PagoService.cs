@@ -94,7 +94,8 @@ public class PagoService
         try
         {
             await AsegurarInicioAsync().ConfigureAwait(false);
-            var estado = await Reintentos.EjecutarAsync(() => _client.Auth.SignUpAsync(correo.Trim(), contrasena))
+            var estado = await Reintentos.EjecutarAsync(() => _client.Auth.SignUpAsync(
+                    Supabase.Gotrue.Constants.SignUpType.Email, correo.Trim(), contrasena))
                 .ConfigureAwait(false);
             var sesion = estado?.Session;
 
