@@ -1,4 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="Android.local.props" Condition="Exists('Android.local.props')" />
   <ItemGroup>
     <ProjectReference Include="..\PagoAlerta.Core\PagoAlerta.Core.csproj" />
   </ItemGroup>
@@ -18,3 +19,4 @@
     <TrimMode>full</TrimMode>
   </PropertyGroup>
 </Project>
+

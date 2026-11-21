@@ -30,3 +30,6 @@ secrets.json
 
 ## Instaladores generados
 installer/Output/
+
+## Rutas locales de Android
+Android.local.props
