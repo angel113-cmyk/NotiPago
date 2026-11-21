@@ -11,6 +11,11 @@ namespace PagoAlerta.Core.Services;
 
 public enum ResultadoLogin { Ok, CredencialesInvalidas, SinConexion, Error }
 public enum ResultadoInsercion { Insertado, YaExistia }
+public enum ResultadoRegistro
+{
+    Ok, RequiereConfirmacion, CorreoInvalido, ContrasenaDebil, CorreoYaRegistrado,
+    RegistroDeshabilitado, SinConexion, Error
+}
 
 /// <summary>HT-05: cliente Supabase (login, insertar, listar, filtrar) con reintentos.</summary>
 public class PagoService
@@ -76,6 +81,48 @@ public class PagoService
         catch (GotrueException) { return ResultadoLogin.CredencialesInvalidas; }
         catch (Exception ex) when (Reintentos.EsTransitorio(ex)) { return ResultadoLogin.SinConexion; }
         catch { return ResultadoLogin.Error; }
+    }
+
+    /// <summary>
+    /// Crea una cuenta nueva (el registro esta abierto por decision del dueno). Si Supabase no exige
+    /// confirmar el correo, deja la sesion iniciada.
+    /// </summary>
+    public async Task<ResultadoRegistro> RegistrarAsync(string correo, string contrasena, bool recordar)
+    {
+        if (string.IsNullOrWhiteSpace(correo) || !correo.Contains('@')) return ResultadoRegistro.CorreoInvalido;
+        if (contrasena is null || contrasena.Length < 8) return ResultadoRegistro.ContrasenaDebil;
+        try
+        {
+            await AsegurarInicioAsync().ConfigureAwait(false);
+            var estado = await Reintentos.EjecutarAsync(() => _client.Auth.SignUpAsync(correo.Trim(), contrasena))
+                .ConfigureAwait(false);
+            var sesion = estado?.Session;
+
+            // Sin sesion = Supabase pide confirmar el correo antes de entrar.
+            if (sesion?.AccessToken is null) return ResultadoRegistro.RequiereConfirmacion;
+
+            _recordar = recordar;
+            if (_store is not null)
+            {
+                if (recordar && sesion.RefreshToken is not null)
+                    await _store.GuardarAsync(new SesionGuardada(sesion.AccessToken, sesion.RefreshToken)).ConfigureAwait(false);
+                else
+                    await _store.BorrarAsync().ConfigureAwait(false);
+            }
+            return ResultadoRegistro.Ok;
+        }
+        catch (GotrueException ex)
+        {
+            var m = ex.Message ?? "";
+            if (m.Contains("already", StringComparison.OrdinalIgnoreCase) || m.Contains("registered", StringComparison.OrdinalIgnoreCase))
+                return ResultadoRegistro.CorreoYaRegistrado;
+            if (m.Contains("password", StringComparison.OrdinalIgnoreCase)) return ResultadoRegistro.ContrasenaDebil;
+            if (m.Contains("signup", StringComparison.OrdinalIgnoreCase) && m.Contains("disabled", StringComparison.OrdinalIgnoreCase))
+                return ResultadoRegistro.RegistroDeshabilitado;
+            return ResultadoRegistro.Error;
+        }
+        catch (Exception ex) when (Reintentos.EsTransitorio(ex)) { return ResultadoRegistro.SinConexion; }
+        catch { return ResultadoRegistro.Error; }
     }
 
     /// <summary>Restaura la sesion guardada (si existe y sigue siendo valida).</summary>
@@ -187,4 +234,5 @@ public class PagoService
             ct: ct).ConfigureAwait(false);
     }
 }
+
 
