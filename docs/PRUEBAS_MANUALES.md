@@ -64,11 +64,12 @@ notificaciones activo en el celular y la app de escritorio abierta.
 | # | Caso | Resultado esperado |
 |---|---|---|
 | F1 | PC: cerrar la ventana con la **X** | La ventana se oculta, aparece el globo "Sigue funcionando en segundo plano" y el ícono queda junto al reloj |
-| F2 | PC: llega un pago con la ventana oculta | Suena y aparece el aviso de Windows "Pago recibido · S/ … · Nombre (App)"; al tocarlo se abre la app |
+| F2 | PC: llega un pago con la ventana oculta | Suena y aparece un **recuadro en la esquina inferior derecha** ("Pago recibido", monto en verde, nombre y app); no roba el foco, se cierra solo y al tocarlo se abre la app |
 | F3 | PC: llega un pago con la ventana a la vista | Suena (si el sonido está activo) y la fila nueva sale resaltada, sin globo |
 | F4 | PC: abrir PagoAlerta otra vez (acceso directo) | No abre una segunda copia: muestra la que ya está corriendo |
 | F5 | PC: ícono de la bandeja → **Salir** | La app se cierra del todo y deja de avisar |
-| F6 | PC: Ajustes → apagar "Sonido" / "Aviso de Windows" | Deja de sonar / de mostrar el globo |
+| F6 | PC: Ajustes → apagar "Sonido" / "Aviso de Windows" | Deja de sonar / de mostrar el recuadro |
+| F6b | PC: llegan 4 pagos seguidos | Se apilan hasta 3 recuadros (el más nuevo abajo); el más antiguo se desvanece |
 | F7 | PC: Ajustes → "Iniciar PagoAlerta con Windows" y reiniciar | Arranca oculta junto al reloj (sin pedir login si había sesión guardada) |
 | F8 | Celular: llega un pago real | Notificación **"Pago recibido · S/ …"** con sonido y vibración; al tocarla abre la app |
 | F9 | Celular: la misma notificación repetida por Android | Avisa **una sola vez** |

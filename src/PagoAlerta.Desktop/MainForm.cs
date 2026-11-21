@@ -103,6 +103,7 @@ public class MainForm : Form
                 OcultarABandeja();
                 return;
             }
+            GestorToasts.CerrarTodos();
             _bandeja.Visible = false;
             _bandeja.Dispose();
             _ = _monitor.DisposeAsync().AsTask();
@@ -300,7 +301,8 @@ public class MainForm : Form
     {
         if (_avisoBandejaMostrado) return;
         _avisoBandejaMostrado = true;
-        _bandeja.ShowBalloonTip(4500, AppInfo.Nombre, "Sigue funcionando en segundo plano. Te avisaré cuando llegue un pago.", ToolTipIcon.Info);
+        GestorToasts.Mostrar($"{AppInfo.Nombre} sigue activo", "", "Funciona en segundo plano. Te avisaré cuando llegue un pago.",
+            esPrueba: false, Tema.Primario, MostrarDesdeBandeja, duracionMs: 5000);
     }
 
     /// <summary>Cierra la app de verdad (la X solo la oculta).</summary>
@@ -310,7 +312,7 @@ public class MainForm : Form
         Close();
     }
 
-    /// <summary>Sonido y aviso de Windows al llegar un pago, aunque la ventana este oculta o con otros filtros.</summary>
+    /// <summary>Sonido y recuadro emergente al llegar un pago, aunque la ventana este oculta o con otros filtros.</summary>
     private void AvisarPago(Pago p)
     {
         if (!Avisos.DebeAvisar(p)) return;
@@ -319,8 +321,10 @@ public class MainForm : Form
         var ventanaALaVista = Visible && WindowState != FormWindowState.Minimized && ReferenceEquals(ActiveForm, this);
         if (_prefs.AvisoPago && !ventanaALaVista)
         {
-            var (titulo, cuerpo) = Avisos.DePago(p);
-            _bandeja.ShowBalloonTip(6000, titulo, cuerpo, ToolTipIcon.Info);
+            // Recuadro emergente en la esquina (como Chrome): se ve aunque la ventana este oculta.
+            var detalle = Avisos.Detalle(p);
+            GestorToasts.Mostrar(Avisos.DePago(p).Titulo, Formato.Monto(p.Monto, p.Moneda), detalle.Length > 0 ? detalle : "Sin nombre",
+                p.EsPrueba, Tema.Recibido, MostrarDesdeBandeja);
         }
     }
 

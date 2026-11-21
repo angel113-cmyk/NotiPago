@@ -44,7 +44,7 @@ public class AjustesForm : Form
         }
 
         Casilla("Sonido cuando llegue un pago nuevo", prefs.Sonido, 84, v => { prefs.Sonido = v; prefs.Guardar(); if (v) Sonido.Reproducir(); });
-        Casilla("Aviso de Windows cuando llegue un pago", prefs.AvisoPago, 120, v => { prefs.AvisoPago = v; prefs.Guardar(); });
+        Casilla("Recuadro emergente cuando llegue un pago", prefs.AvisoPago, 120, v => { prefs.AvisoPago = v; prefs.Guardar(); });
         Casilla("Iniciar PagoAlerta con Windows", InicioConWindows.Activo, 156, v =>
         {
             if (!InicioConWindows.Establecer(v))

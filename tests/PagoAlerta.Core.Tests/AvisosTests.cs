@@ -37,6 +37,15 @@ public class AvisosTests
         Assert.Equal("Prueba: pago de ejemplo", Avisos.DePago(P(prueba: true)).Titulo);
     }
 
+    [Fact]
+    public void Detalle_une_nombre_y_app_segun_lo_que_haya()
+    {
+        Assert.Equal("María Quispe · Yape", Avisos.Detalle(P()));
+        Assert.Equal("Yape", Avisos.Detalle(P(nombre: null)));
+        Assert.Equal("María Quispe", Avisos.Detalle(P(app: " ")));
+        Assert.Equal("", Avisos.Detalle(P(nombre: null, app: null)));
+    }
+
     [Theory]
     [InlineData(TipoPago.Recibido, true)]
     [InlineData(TipoPago.Enviado, false)]

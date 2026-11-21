@@ -19,6 +19,10 @@ public static class Avisos
         return (titulo, cuerpo);
     }
 
+    /// <summary>Segunda linea del recuadro: "María Quispe · Yape" (lo que haya).</summary>
+    public static string Detalle(Pago p) =>
+        string.Join(" · ", new[] { p.Remitente?.Trim(), p.App?.Trim() }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
     /// <summary>Solo los pagos recibidos (y las pruebas) generan aviso; un "cargo" no.</summary>
     public static bool DebeAvisar(Pago p) => p.Tipo == TipoPago.Recibido;
 }

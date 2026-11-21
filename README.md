@@ -117,8 +117,8 @@ Las reglas están en `src/PagoAlerta.Core/Parsing/parser-rules.json` (no hay que
 ## 6b. Segundo plano y avisos
 
 - **PC:** al cerrar la ventana con la X, PagoAlerta **sigue funcionando junto al reloj de Windows** y te avisa de cada pago con
-  un globo de Windows y un sonido. Para cerrarla del todo: clic derecho en el ícono → **Salir**. Solo se permite una copia; abrirla
-  otra vez muestra la que ya corre. En *Ajustes* puedes apagar el sonido y el aviso, o activar **Iniciar con Windows**.
+  un **recuadro emergente** en la esquina inferior derecha (como las notificaciones de Chrome: monto, nombre, app y barra de tiempo) y un sonido. El recuadro no roba el foco, se cierra solo a los 8 s (con el mouse encima se detiene) y al tocarlo abre la app. Para cerrarla del todo: clic derecho en el ícono → **Salir**. Solo se permite una copia; abrirla
+  otra vez muestra la que ya corre. En *Ajustes* puedes apagar el sonido y el recuadro, o activar **Iniciar con Windows**.
 - **Celular:** al detectar un pago muestra una notificación **"Pago recibido · S/ … · Nombre (App)"** con sonido y vibración.
   Se puede apagar en *Cuenta → Avisar cuando llegue un pago*. En Android 13+ hay que permitir las notificaciones de la app.
   Si prefieres no duplicar el aviso de Yape/BBVA, apágalo ahí.
