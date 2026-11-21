@@ -19,5 +19,9 @@
     <PublishTrimmed>false</PublishTrimmed>
     <AndroidLinkMode>None</AndroidLinkMode>
   </PropertyGroup>
+  <!-- APK de Release: un solo archivo con celulares ARM de 64 y 32 bits y emuladores x86_64 (BlueStacks). -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' And '$(RuntimeIdentifier)' == ''">
+    <RuntimeIdentifiers>android-arm64;android-arm;android-x64</RuntimeIdentifiers>
+  </PropertyGroup>
 </Project>
 

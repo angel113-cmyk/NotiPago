@@ -1,6 +1,10 @@
-# HT-16: genera el APK firmado (Release) de PagoAlerta.
+﻿# HT-16: genera el APK firmado (Release) de PagoAlerta.
 # La keystore y su clave viven FUERA del repositorio: %USERPROFILE%\PagoAlerta-keys\
 # Uso:  powershell -ExecutionPolicy Bypass -File installer\crear-apk.ps1
+param(
+    # 'todas' = celulares ARM + emuladores (un solo APK, el definitivo). 'x64' = solo emuladores como BlueStacks (mas liviano).
+    [ValidateSet('todas', 'x64')] [string]$Abi = 'todas'
+)
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path $PSScriptRoot -Parent
 $proyecto = Join-Path $raiz 'src\PagoAlerta.Android\PagoAlerta.Android.csproj'
@@ -44,9 +48,10 @@ if (-not $version) { $version = '1.0.0' }
 
 # --- 3. Compilar en Release y firmar ---
 Write-Host "Compilando PagoAlerta $version (Release, firmado)..."
-dotnet publish $proyecto -c Release -f net11.0-android `
+$extra = @()
+if ($Abi -eq 'x64') { $extra += '-p:RuntimeIdentifier=android-x64' }
+dotnet publish $proyecto -c Release -f net11.0-android @extra `
     -p:AndroidPackageFormat=apk `
-    "-p:RuntimeIdentifiers=android-arm64%3Bandroid-arm%3Bandroid-x64" `
     -p:AndroidKeyStore=true `
     "-p:AndroidSigningKeyStore=$keystore" `
     "-p:AndroidSigningKeyAlias=$alias" `
@@ -61,7 +66,9 @@ if (-not $apk) { throw 'No se encontro el APK firmado.' }
 
 $dist = Join-Path $raiz 'dist'
 New-Item -ItemType Directory -Force $dist | Out-Null
-$final = Join-Path $dist "PagoAlerta-$version.apk"
+$sufijo = if ($Abi -eq 'x64') { '-emulador-x64' } else { '' }
+$final = Join-Path $dist "PagoAlerta-$version$sufijo.apk"
 Copy-Item $apk.FullName $final -Force
 Write-Host ''
 Write-Host "APK listo: $final  ($([math]::Round((Get-Item $final).Length/1MB,1)) MB)"
+
