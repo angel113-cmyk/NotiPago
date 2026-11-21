@@ -1,0 +1,44 @@
+{
+  "_ayuda": "Cada regla: app, paquetes (opcional; vacio = cualquier app), tipo, patron (regex .NET, sin distinguir mayusculas). Grupos con nombre: (?<monto>...) obligatorio y (?<nombre>...) opcional. buscarEn: 'texto' (por defecto) o 'ambos' (titulo + texto). 'provisional' = aun sin texto real de la tienda.",
+  "reglas": [
+    {
+      "app": "Yape",
+      "paquetes": [ "com.bcp.innovacxion.yapeapp" ],
+      "tipo": "recibido",
+      "patron": "(?<nombre>.+?)\\s+te\\s+envi[oó]\\s+un\\s+pago\\s+por\\s+(?<monto>S/\\s*[\\d.,]+)"
+    },
+    {
+      "app": "Yape",
+      "paquetes": [ "com.bcp.innovacxion.yapeapp" ],
+      "tipo": "enviado",
+      "provisional": true,
+      "patron": "Yapeaste\\s+(?<monto>S/\\s*[\\d.,]+)\\s+a\\s+(?<nombre>.+?)(?:\\.|$)"
+    },
+    {
+      "app": "Plin",
+      "paquetes": [ "pe.com.interbank.mobilebanking", "com.bbva.nxt_peru", "com.scotiabank.mobile.pe", "pe.com.bcp.mobile" ],
+      "tipo": "recibido",
+      "provisional": true,
+      "patron": "(?:Recibiste|Te\\s+(?:enviaron|plinearon))\\s+(?<monto>S/\\s*[\\d.,]+)\\s+de\\s+(?<nombre>.+?)(?:\\.|$)"
+    },
+    {
+      "app": "Plin",
+      "paquetes": [ "pe.com.interbank.mobilebanking", "com.bbva.nxt_peru", "com.scotiabank.mobile.pe", "pe.com.bcp.mobile" ],
+      "tipo": "recibido",
+      "provisional": true,
+      "patron": "(?<nombre>.+?)\\s+te\\s+(?:envi[oó]|plane[oó])\\s+(?<monto>S/\\s*[\\d.,]+)"
+    },
+    {
+      "app": "BBVA",
+      "paquetes": [ "com.bbva.nxt_peru", "com.bancomer.mbanking" ],
+      "tipo": "recibido",
+      "patron": "Abono\\s+a\\s+tu\\s+cuenta.*?\\bde\\s+(?<monto>(?:S/|\\$)\\s*[\\d.,]+)"
+    },
+    {
+      "app": "BBVA",
+      "paquetes": [ "com.bbva.nxt_peru", "com.bancomer.mbanking" ],
+      "tipo": "enviado",
+      "patron": "Cargo\\s+a\\s+tu\\s+cuenta.*?\\bde\\s+(?<monto>(?:S/|\\$)\\s*[\\d.,]+)"
+    }
+  ]
+}
