@@ -49,6 +49,12 @@ public class PagoListenerService : NotificationListenerService
             return;
         }
 
+        // Avisos permanentes de la app (servicio en primer plano, "en curso"): no son movimientos ni merecen "Revisar".
+        if ((sbn.Notification.Flags & (NotificationFlags.OngoingEvent | NotificationFlags.ForegroundService)) != 0)
+        {
+            return;
+        }
+
         // Se extraen datos ahora (el objeto puede reciclarse) y el trabajo pesado va a un hilo de fondo.
         var extras = sbn.Notification.Extras;
         var titulo = extras?.GetCharSequence(Notification.ExtraTitle)?.ToString()
@@ -82,15 +88,11 @@ public class PagoListenerService : NotificationListenerService
     {
         try
         {
-            PagoDetectado? detectado = null;
-            foreach (var texto in candidatos)
-            {
-                detectado = Servicios.Parser.Parse(paquete, titulo, texto, fechaUtc);
-                if (detectado is not null) break;
-            }
+            // Una notificacion de BBVA sin regla NO se descarta: se guarda como "no reconocido" (etiqueta Revisar).
+            var detectado = Servicios.Parser.ParseORevisar(paquete, titulo, candidatos, fechaUtc);
 
             Servicios.Registrar(new NotificacionReciente(paquete, DateTime.Now, true, detectado is not null));
-            if (detectado is null) return;                                    // no es un pago: se ignora (HU-12)
+            if (detectado is null) return;                                    // paquete sin "revisar" y sin regla: se ignora (HU-12)
 
             var pago = PagoFactory.DesdeDetectado(detectado);
             if (Servicios.YaEnviadoRecientemente(pago.Hash)) return;           // Android repitio la notificacion (HU-18)

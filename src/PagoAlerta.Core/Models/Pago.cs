@@ -26,12 +26,24 @@ public class Pago : BaseModel
     [Column("remitente")] public string? Remitente { get; set; }
     [Column("monto")] public decimal Monto { get; set; }
     [Column("moneda")] public string Moneda { get; set; } = AppInfo.MonedaPorDefecto;
-    [Column("fecha_hora")] public DateTime FechaHora { get; set; }
+    private DateTime _fechaHora;
+    /// <summary>Siempre UTC: si llega como Local (lectura de Supabase) se convierte; si es Unspecified se asume UTC.</summary>
+    [Column("fecha_hora")]
+    public DateTime FechaHora
+    {
+        get => _fechaHora;
+        set => _fechaHora = value.Kind == DateTimeKind.Local
+            ? value.ToUniversalTime()
+            : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+    }
     [Column("titulo_original")] public string? TituloOriginal { get; set; }
     [Column("texto_original")] public string? TextoOriginal { get; set; }
     [Column("paquete")] public string? Paquete { get; set; }
     [Column("hash")] public string Hash { get; set; } = "";
     [Column("es_prueba")] public bool EsPrueba { get; set; }
+
+    /// <summary>Notificacion que no coincidio con ninguna regla (tipo "otro"): se muestra con la etiqueta Revisar y no suma.</summary>
+    public bool EsRevisar() => Tipo == TipoPago.Otro && !EsPrueba;
 
     [Column("created_at", ignoreOnInsert: true, ignoreOnUpdate: true)]
     public DateTime CreatedAt { get; set; }

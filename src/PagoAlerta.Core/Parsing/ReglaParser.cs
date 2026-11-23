@@ -5,6 +5,8 @@ namespace PagoAlerta.Core.Parsing;
 public class ReglaParser
 {
     [JsonPropertyName("app")] public string App { get; set; } = "";
+    /// <summary>Fila de "Apps a monitorear" a la que pertenece (Plin llega por la app de BBVA). Vacio = la propia app.</summary>
+    [JsonPropertyName("grupo")] public string? Grupo { get; set; }
     [JsonPropertyName("paquetes")] public List<string> Paquetes { get; set; } = new();
     [JsonPropertyName("tipo")] public string Tipo { get; set; } = "otro";
     [JsonPropertyName("patron")] public string Patron { get; set; } = "";
@@ -16,6 +18,7 @@ public class ReglaParser
 public class ConjuntoReglas
 {
     [JsonPropertyName("reglas")] public List<ReglaParser> Reglas { get; set; } = new();
+    [JsonPropertyName("revisarSiNoCoincide")] public List<string> RevisarSiNoCoincide { get; set; } = new();
 }
 
 /// <summary>Resultado de interpretar una notificacion. El texto original siempre se conserva.</summary>

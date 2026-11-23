@@ -40,8 +40,8 @@ public class PruebaPorAppTests
     {
         var p = PagoFactory.CrearPruebaPorParser(Parser, "Plin")!;
         Assert.Equal("com.bbva.nxt_peru", p.Paquete);
-        Assert.Equal("¡Recibiste un Plin!", p.TituloOriginal);
-        Assert.Contains("vía Plin", p.TextoOriginal);
+        Assert.Contains("¡Recibiste un Plin!", p.TituloOriginal);
+        Assert.Contains("te plineó", p.TextoOriginal);
     }
 
     [Fact]
@@ -63,7 +63,8 @@ public class PruebaPorAppTests
     [Fact]
     public void La_lista_de_apps_de_prueba_coincide_con_las_del_parser()
     {
+        // Plin no tiene fila propia: llega por la app de BBVA (su paquete esta en la fila BBVA).
         foreach (var app in PagoFactory.AppsDePrueba)
-            Assert.Contains(app, Parser.PaquetesPorApp.Keys);
+            Assert.Contains(app == "Plin" ? "BBVA" : app, Parser.PaquetesPorApp.Keys);
     }
 }

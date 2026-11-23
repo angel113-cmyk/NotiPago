@@ -49,7 +49,7 @@ public static class PagoFactory
     /// </summary>
     public static (string Paquete, string Titulo, string Texto) NotificacionDePrueba(string app) => app switch
     {
-        "Plin" => ("com.bbva.nxt_peru", "¡Recibiste un Plin!", $"Recibiste S/ 1.00 de {NombrePrueba} vía Plin"),
+        "Plin" => ("com.bbva.nxt_peru", "¡Recibiste un Plin! 💵", $"{NombrePrueba} te plineó S/1.00 ."),
         "BBVA" => ("com.bbva.nxt_peru", "BBVA", "Abono a tu cuenta *0000 de S/ 1.00"),
         _ => (PaquetePrueba, "Confirmación de pago", $"{NombrePrueba} te envió un pago por S/1.00. El cód. de seguridad es:000")
     };
