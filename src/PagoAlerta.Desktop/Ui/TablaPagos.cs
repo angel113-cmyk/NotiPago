@@ -327,6 +327,7 @@ public class TablaPagos : Control
         var fN = Tema.Fuente(10.5f, FontStyle.Bold);
         var etiquetas = new List<(string t, Color fondo, Color txt)>();
         if (p.EsPrueba) etiquetas.Add(("PRUEBA", Color.FromArgb(0xD5, 0xF5, 0xFA), Color.FromArgb(0x0E, 0x74, 0x90)));
+        if (p.EsRevisar()) etiquetas.Add(("REVISAR", Color.FromArgb(0xFE, 0xF3, 0xC7), Color.FromArgb(0xB4, 0x53, 0x09)));
         if (esNuevo) etiquetas.Add(("NUEVO", Tema.Primario, Color.White));
         var anchoEtq = etiquetas.Sum(t => TextRenderer.MeasureText(t.t, Tema.Fuente(7.5f, FontStyle.Bold)).Width + 18 + 6);
         var rn = Rc(c.nombre, fila);
@@ -358,7 +359,7 @@ public class TablaPagos : Control
         // Monto
         var color = p.Tipo == TipoPago.Recibido ? Tema.Recibido : p.Tipo == TipoPago.Enviado ? Tema.Enviado : Tema.TextoSecundario;
         var signo = p.Tipo == TipoPago.Recibido ? "+" : p.Tipo == TipoPago.Enviado ? "−" : "";
-        TextRenderer.DrawText(g, signo + Formato.Monto(p.Monto, p.Moneda), Tema.Fuente(11.5f, FontStyle.Bold), Rc(c.monto, fila), color,
+        TextRenderer.DrawText(g, p.EsRevisar() ? "—" : signo + Formato.Monto(p.Monto, p.Moneda), Tema.Fuente(11.5f, FontStyle.Bold), Rc(c.monto, fila), color,
             TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
 
         // Fundido de entrada: una capa blanca que desaparece

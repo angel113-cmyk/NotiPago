@@ -11,8 +11,11 @@ public class NotificationParser
 {
     private readonly List<(ReglaParser Regla, Regex Regex)> _reglas = new();
 
-    public NotificationParser(IEnumerable<ReglaParser> reglas)
+    private readonly HashSet<string> _revisar;
+
+    public NotificationParser(IEnumerable<ReglaParser> reglas, IEnumerable<string>? revisarSiNoCoincide = null)
     {
+        _revisar = new HashSet<string>(revisarSiNoCoincide ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
         foreach (var r in reglas)
         {
             var regex = new Regex(r.Patron,
@@ -22,9 +25,12 @@ public class NotificationParser
         }
     }
 
-    /// <summary>Apps conocidas y sus paquetes, tomados de las reglas (fuente unica para las pantallas).</summary>
+    /// <summary>
+    /// Filas de "Apps a monitorear" y sus paquetes, tomados de las reglas (fuente unica para las pantallas).
+    /// Una regla con "grupo" (Plin dentro de BBVA) cuenta en la fila de su grupo, no en una propia.
+    /// </summary>
     public IReadOnlyDictionary<string, IReadOnlyList<string>> PaquetesPorApp =>
-        _reglas.GroupBy(r => r.Regla.App)
+        _reglas.GroupBy(r => string.IsNullOrWhiteSpace(r.Regla.Grupo) ? r.Regla.App : r.Regla.Grupo!)
                .ToDictionary(g => g.Key,
                    g => (IReadOnlyList<string>)g.SelectMany(r => r.Regla.Paquetes)
                         .Distinct(StringComparer.OrdinalIgnoreCase).ToList());
@@ -33,7 +39,7 @@ public class NotificationParser
     {
         var set = JsonSerializer.Deserialize<ConjuntoReglas>(json, new JsonSerializerOptions { ReadCommentHandling = JsonCommentHandling.Skip })
                   ?? throw new InvalidDataException("Reglas del parser vacias o invalidas.");
-        return new NotificationParser(set.Reglas);
+        return new NotificationParser(set.Reglas, set.RevisarSiNoCoincide);
     }
 
     public static NotificationParser DesdeArchivo(string ruta) => DesdeJson(File.ReadAllText(ruta));
@@ -47,6 +53,29 @@ public class NotificationParser
         using var reader = new StreamReader(stream);
         return DesdeJson(reader.ReadToEnd());
     }
+
+    /// <summary>App con la que se guarda una notificacion que no coincide con ninguna regla.</summary>
+    public const string AppNoReconocido = "BBVA";
+
+    /// <summary>
+    /// Como <see cref="Parse"/>, pero una notificacion de un paquete "a revisar" (BBVA) que no coincide con ninguna regla
+    /// NO se descarta: se devuelve como no reconocido (tipo "otro", monto 0) para verla en la PC con la etiqueta Revisar.
+    /// </summary>
+    public PagoDetectado? ParseORevisar(string? paquete, string? titulo, IReadOnlyList<string> textos, DateTime fechaHoraUtc)
+    {
+        foreach (var t in textos)
+        {
+            var d = Parse(paquete, titulo, t, fechaHoraUtc);
+            if (d is not null) return d;
+        }
+        if (paquete is null || !_revisar.Contains(paquete)) return null;
+        var texto = textos.FirstOrDefault(t => !string.IsNullOrWhiteSpace(t)) ?? "";
+        if (texto.Length == 0 && string.IsNullOrWhiteSpace(titulo)) return null;
+        return new PagoDetectado(AppNoReconocido, TipoPagoOtro, null, 0m, AppInfo.MonedaPorDefecto,
+            fechaHoraUtc, titulo, texto, paquete);
+    }
+
+    private const string TipoPagoOtro = "otro";
 
     public PagoDetectado? Parse(string? paquete, string? titulo, string? texto, DateTime fechaHoraUtc)
     {

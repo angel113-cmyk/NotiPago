@@ -137,9 +137,12 @@ public static class Tarjetas
         if (p.EsPrueba)
             etiquetas.AddView(Vistas.Pildora(c, "PRUEBA", Colores.AcentoClaro, Color.ParseColor("#0E7490"), 11),
                 Vistas.Margen(c, 5, 0, 0, 6, ViewGroup.LayoutParams.WrapContent));
+        if (p.EsRevisar())
+            etiquetas.AddView(Vistas.Pildora(c, "REVISAR", Color.ParseColor("#FEF3C7"), Color.ParseColor("#B45309"), 11),
+                Vistas.Margen(c, 5, 0, 0, 6, ViewGroup.LayoutParams.WrapContent));
         if (etiquetas.ChildCount > 0) medio.AddView(etiquetas);
 
-        var detalle = p.Tipo == TipoPago.Recibido ? "Pago confirmado" : p.Tipo == TipoPago.Enviado ? "Pago enviado" : "Movimiento";
+        var detalle = p.Tipo == TipoPago.Recibido ? "Pago confirmado" : p.Tipo == TipoPago.Enviado ? "Pago enviado" : p.EsRevisar() ? "No reconocido" : "Movimiento";
         medio.AddView(Vistas.Etiqueta(c, $"{Formato.Hora24(p.FechaHora)} · {detalle}", 13, Colores.TextoSecundario),
             Vistas.Margen(c, 5));
         var lpMedio = Vistas.Margen(c, 0, 0, 14, 8, 0, ViewGroup.LayoutParams.WrapContent);
@@ -150,7 +153,7 @@ public static class Tarjetas
         derecha.SetGravity(GravityFlags.End);
         var color = p.Tipo == TipoPago.Recibido ? Colores.Verde : p.Tipo == TipoPago.Enviado ? Color.ParseColor("#374151") : Colores.TextoSecundario;
         var signo = p.Tipo == TipoPago.Recibido ? "+" : p.Tipo == TipoPago.Enviado ? "−" : "";
-        var monto = Vistas.Etiqueta(c, signo + Formato.Monto(p.Monto, p.Moneda), 19, color, negrita: true);
+        var monto = Vistas.Etiqueta(c, p.EsRevisar() ? "—" : signo + Formato.Monto(p.Monto, p.Moneda), 19, color, negrita: true);
         monto.Gravity = GravityFlags.End;
         derecha.AddView(monto);
         var tipo = p.Tipo.Length > 0 ? char.ToUpperInvariant(p.Tipo[0]) + p.Tipo[1..] : "";

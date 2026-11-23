@@ -15,7 +15,7 @@ public static class Exportadores
     public static readonly string[] Columnas = { "Fecha", "Hora", "Nombre", "Monto", "App" };
 
     private static IEnumerable<string[]> Filas(IEnumerable<Pago> pagos) =>
-        pagos.Where(p => !p.EsPrueba).Select(p => new[]
+        pagos.Where(p => !p.EsPrueba && !p.EsRevisar()).Select(p => new[]
         {
             Formato.Fecha(p.FechaHora),
             Formato.Hora(p.FechaHora),

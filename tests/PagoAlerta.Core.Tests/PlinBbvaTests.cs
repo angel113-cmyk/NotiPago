@@ -74,15 +74,103 @@ public class PlinBbvaTests
         Assert.Equal("Juan Pérez · Plin", Avisos.Detalle(pago));
     }
 
+    // ---- Formato real: titulo "¡Recibiste un Plin! 💵", texto "<NOMBRE> te plineó S/<MONTO> ." ----
+
     [Fact]
-    public void Plin_tambien_funciona_desde_otras_apps_de_banco_marcadas()
+    public void Plin_real_de_BBVA_Peru_te_plineo()
     {
-        foreach (var paquete in new[] { "pe.com.interbank.mobilebanking", "com.scotiabank.mobile.pe", "pe.com.bcp.mobile" })
+        var r = Parser.Parse(AppBbvaPeru, "¡Recibiste un Plin! 💵", "MARIA LOPEZ GA te plineó S/16.80 .", Hora);
+
+        Assert.NotNull(r);
+        Assert.Equal("Plin", r!.App);
+        Assert.Equal(TipoPago.Recibido, r.Tipo);
+        Assert.Equal("MARIA LOPEZ GA", r.Nombre);          // tal como llega, abreviado
+        Assert.Equal(16.80m, r.Monto);
+        Assert.Equal(Hora, r.FechaHoraUtc);
+        Assert.Equal(AppBbvaPeru, r.Paquete);
+        Assert.Equal("¡Recibiste un Plin! 💵", r.TituloOriginal);
+        Assert.Equal("MARIA LOPEZ GA te plineó S/16.80 .", r.TextoOriginal);
+    }
+
+    [Theory]
+    [InlineData("MARIA LOPEZ GA te plineó S/16.80 .", "16.80")]
+    [InlineData("MARIA LOPEZ GA te plineó S/ 16.80 .", "16.80")]
+    [InlineData("MARIA LOPEZ GA te plineó S/1,234.50 .", "1234.50")]
+    [InlineData("MARIA LOPEZ GA te plineó S/ 1,234.50", "1234.50")]
+    [InlineData("MARIA LOPEZ GA te plineo S/1.00 .", "1.00")]
+    public void Plin_real_acepta_espacios_y_miles_en_el_monto(string texto, string monto)
+    {
+        // Sin depender del emoji: titulo distinto, vacio o nulo.
+        foreach (var titulo in new[] { "¡Recibiste un Plin! 💵", "¡Recibiste un Plin!", "", null })
         {
-            var r = Parser.Parse(paquete, "¡Recibiste un Plin!", "Recibiste S/ 18.00 de Ana Ruiz vía Plin", Hora);
+            var r = Parser.Parse(AppBbvaPeru, titulo, texto, Hora);
             Assert.NotNull(r);
-            Assert.Equal("Ana Ruiz", r!.Nombre);
+            Assert.Equal("Plin", r!.App);
+            Assert.Equal("MARIA LOPEZ GA", r.Nombre);
+            Assert.Equal(decimal.Parse(monto, System.Globalization.CultureInfo.InvariantCulture), r.Monto);
         }
+    }
+
+    [Fact]
+    public void Plin_real_guardado_como_pago_Plin_con_paquete_y_textos_originales()
+    {
+        var d = Parser.Parse(AppBbvaPeru, "¡Recibiste un Plin! 💵", "MARIA LOPEZ GA te plineó S/16.80 .", Hora)!;
+        var pago = PagoAlerta.Core.Services.PagoFactory.DesdeDetectado(d);
+
+        Assert.Equal("Plin", pago.App);
+        Assert.Equal("MARIA LOPEZ GA", pago.Remitente);
+        Assert.Equal(16.80m, pago.Monto);
+        Assert.Equal(Hora, pago.FechaHora);
+        Assert.Equal(AppBbvaPeru, pago.Paquete);
+        Assert.Equal("¡Recibiste un Plin! 💵", pago.TituloOriginal);
+        Assert.Equal("MARIA LOPEZ GA te plineó S/16.80 .", pago.TextoOriginal);
+        Assert.False(pago.EsRevisar());
+        Assert.True(Avisos.DebeAvisar(pago));
+    }
+
+    [Fact]
+    public void Plin_ya_no_es_una_fila_de_Apps_a_monitorear_y_va_dentro_de_BBVA()
+    {
+        var cat = Parser.PaquetesPorApp;
+        Assert.Equal(new[] { "BBVA", "Yape" }, cat.Keys.OrderBy(k => k).ToArray());
+        Assert.Contains(AppBbvaPeru, cat["BBVA"]);
+        Assert.DoesNotContain("pe.com.interbank.mobilebanking", cat.Values.SelectMany(v => v));
+    }
+
+    [Fact]
+    public void Plin_ya_no_se_lee_desde_el_paquete_de_Interbank()
+    {
+        Assert.Null(Parser.Parse("pe.com.interbank.mobilebanking", "¡Recibiste un Plin! 💵", "MARIA LOPEZ GA te plineó S/16.80 .", Hora));
+    }
+
+    [Fact]
+    public void BBVA_sin_regla_se_guarda_como_no_reconocido_Revisar()
+    {
+        var textos = new[] { "Tu clave digital vence pronto, actualízala hoy." };
+        var r = Parser.ParseORevisar(AppBbvaPeru, "Aviso importante", textos, Hora);
+
+        Assert.NotNull(r);
+        Assert.Equal("BBVA", r!.App);
+        Assert.Equal(TipoPago.Otro, r.Tipo);
+        Assert.Equal(0m, r.Monto);
+        Assert.Equal(AppBbvaPeru, r.Paquete);
+        Assert.Equal("Aviso importante", r.TituloOriginal);
+        Assert.Equal(textos[0], r.TextoOriginal);
+
+        var pago = PagoAlerta.Core.Services.PagoFactory.DesdeDetectado(r);
+        Assert.True(pago.EsRevisar());
+        Assert.False(Avisos.DebeAvisar(pago));                       // no suena como un pago
+        var csv = new MemoryStream();
+        PagoAlerta.Core.Exportacion.Exportadores.EscribirCsv(new[] { pago }, csv);
+        Assert.DoesNotContain("Aviso", System.Text.Encoding.UTF8.GetString(csv.ToArray()));   // no se exporta
+    }
+
+    [Fact]
+    public void ParseORevisar_prefiere_la_regla_y_no_toca_otros_paquetes()
+    {
+        var plin = Parser.ParseORevisar(AppBbvaPeru, "¡Recibiste un Plin! 💵", new[] { "x", "MARIA LOPEZ GA te plineó S/16.80 ." }, Hora);
+        Assert.Equal("Plin", plin!.App);
+        Assert.Null(Parser.ParseORevisar("com.otra.app", "Hola", new[] { "Promo" }, Hora));   // otra app: se ignora
     }
 
     [Fact]

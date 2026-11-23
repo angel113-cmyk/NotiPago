@@ -11,6 +11,7 @@ public static class Avisos
         var titulo = p.EsPrueba ? "Prueba: pago de ejemplo"
             : p.Tipo == TipoPago.Recibido ? "Pago recibido"
             : p.Tipo == TipoPago.Enviado ? "Pago enviado"
+            : p.EsRevisar() ? "Revisar"
             : "Movimiento";
 
         var cuerpo = Formato.Monto(p.Monto, p.Moneda);

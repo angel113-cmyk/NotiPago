@@ -72,7 +72,7 @@ public class HashYFlujoTests
     {
         var cat = Parser.PaquetesPorApp;
         Assert.Contains(Yape, cat["Yape"]);
-        Assert.True(cat.ContainsKey("Plin"));
+        Assert.False(cat.ContainsKey("Plin"));   // Plin llega por la app de BBVA: sin fila propia
         Assert.True(cat.ContainsKey("BBVA"));
     }
 }

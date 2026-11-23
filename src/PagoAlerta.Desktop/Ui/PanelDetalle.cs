@@ -93,7 +93,7 @@ public class PanelDetalle : ControlDibujado
 
         var colorMonto = p.Tipo == TipoPago.Recibido ? Tema.Recibido : p.Tipo == TipoPago.Enviado ? Tema.Enviado : Tema.TextoSecundario;
         var signo = p.Tipo == TipoPago.Recibido ? "+" : p.Tipo == TipoPago.Enviado ? "−" : "";
-        TextRenderer.DrawText(g, signo + Formato.Monto(p.Monto, p.Moneda), Tema.Fuente(18f, FontStyle.Bold),
+        TextRenderer.DrawText(g, p.EsRevisar() ? "REVISAR — no reconocido" : signo + Formato.Monto(p.Monto, p.Moneda), Tema.Fuente(18f, FontStyle.Bold),
             new Rectangle(96, 86 + desplaza, Width - 130, 34), Fade(colorMonto), TextFormatFlags.Left | TextFormatFlags.NoPadding);
 
         if (p.EsPrueba)
